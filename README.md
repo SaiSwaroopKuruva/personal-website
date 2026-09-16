@@ -1,59 +1,254 @@
-# Hello World — Spring Boot + React
+# NiveshPath — Financial Advisor Platform
 
-A minimal full-stack "Hello World" demonstrating this architecture:
+A production-ready foundation for an Indian financial advisory platform: a Next.js frontend, a Spring
+Boot 3 authentication API, and PostgreSQL (Neon in production), wired together with Docker Compose for
+local development and GitHub Actions for CI/CD to GitHub Pages and Render.
 
-`GitHub` (source + Actions CI/CD) → `Render` (Spring Boot API, Docker) + `GitHub Pages` (React frontend) → `Neon` (Postgres)
+**Live site:** https://saiswaroopkuruva.github.io/personal-website/ (published after the first approved
+deploy — see [Section 13](#13-github-actions--cicd)).
+
+## 1. Project Overview
+
+Phase 1 delivers the foundation of the platform:
+
+- A premium, responsive fintech landing page
+- JWT-based authentication (register, login, refresh, logout, current user)
+- A protected dashboard with placeholder portfolio widgets
+- Local development via Docker Compose (Next.js + Spring Boot + PostgreSQL)
+- CI pipelines for both apps, deploying to GitHub Pages (frontend) and Render (backend)
+
+## 2. Architecture
+
+**Hosted:**
+
+```
+GitHub → GitHub Actions ─┬─→ GitHub Pages (static Next.js export)
+                          └─→ Render (Spring Boot API) → Neon PostgreSQL
+```
+
+**Local development:**
+
+```
+Docker Compose
+ ├─ frontend   (Next.js, :3000)
+ ├─ backend    (Spring Boot, :8080)
+ └─ postgres   (PostgreSQL, :5432)
+```
+
+**Request flow:** Browser → GitHub Pages (static Next.js) → HTTPS → Render (Spring Boot) → Neon PostgreSQL.
+
+## 3. Tech Stack
+
+**Frontend:** Next.js (App Router), TypeScript, TailwindCSS, shadcn/ui-style components, React Hook Form,
+Zod, Axios, Zustand, React Query.
+
+**Backend:** Spring Boot 3, Java 21, Spring Security, Spring Data JPA, PostgreSQL, JWT, Flyway, Lombok,
+Jakarta Validation, springdoc-openapi (Swagger).
+
+**Infrastructure:** Docker/Docker Compose (local), GitHub Actions (CI/CD), GitHub Pages (frontend
+hosting), Render (backend hosting), Neon (managed PostgreSQL).
+
+## 4. Repository Structure
 
 ```
 .
-├── backend/     Spring Boot 3 (Java 17) REST API, deployed to Render
-├── frontend/    React + Vite app, deployed to GitHub Pages
-├── render.yaml  Render Blueprint for the backend service
-└── .github/workflows/ci-cd.yml  Build/test backend+frontend, deploy to Pages/Render
+├── backend/                Spring Boot 3 API
+│   └── src/main/java/com/example/helloworld/
+│       ├── controller/     REST controllers
+│       ├── service/        Business logic (+ impl/ package)
+│       ├── repository/     Spring Data JPA repositories
+│       ├── dto/            Request/response DTOs
+│       ├── entity/         JPA entities
+│       ├── config/         Security, CORS, JWT, OpenAPI configuration
+│       ├── security/       JWT filter, user principal, user details service
+│       ├── exception/      Custom exceptions + global exception handler
+│       └── util/           Shared constants
+├── frontend/                Next.js App Router application
+│   └── src/
+│       ├── app/             Routes (landing, auth pages, dashboard)
+│       ├── components/      UI primitives, layout, landing, auth, dashboard
+│       ├── hooks/           React Query hooks for auth
+│       ├── lib/             Axios client, API services, validation schemas
+│       ├── store/           Zustand auth store
+│       └── types/           Shared TypeScript types
+├── docker-compose.yml        Local dev orchestration (frontend + backend + postgres)
+├── render.yaml                Render Blueprint for the backend
+└── .github/workflows/         ci-cd.yml (build FE+BE, deploy on push to main)
 ```
 
-The API exposes `GET /api/hello`, which increments a visit counter row in
-Neon Postgres and returns `{ "message": "...", "visits": N }`. The frontend
-fetches this endpoint and displays the result.
+## 5. Local Development Setup
 
-## Local development
+Prerequisites: Docker Desktop, or Node.js 20+ and JDK 21 + Maven if running services natively.
 
-**Backend** (requires JDK 17+ and Maven, and a Neon/Postgres connection):
+**Fastest path — Docker Compose:**
 
 ```bash
-cd backend
-cp .env.example .env   # fill in Neon credentials, then export them
-mvn spring-boot:run
+docker compose up --build
 ```
 
-**Frontend**:
+This starts PostgreSQL, the backend on `http://localhost:8080`, and the frontend on `http://localhost:3000`.
+
+## 6. Environment Variables
+
+**Frontend** (`frontend/.env.local`, see `frontend/.env.example`):
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | Base URL of the backend API (defaults to `http://localhost:8080`) |
+
+GitHub Pages serves static files only, so `NEXT_PUBLIC_API_URL` cannot be read at runtime there — the CI
+`deploy` job bakes it into the build from the `NEXT_PUBLIC_API_URL` repository variable (see
+[Section 14](#14-github-pages-deployment)).
+
+**Backend** (`backend/.env`, see `backend/.env.example`):
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | JDBC connection string (local Postgres or Neon) |
+| `DATABASE_USERNAME` / `DATABASE_PASSWORD` | Database credentials |
+| `JWT_SECRET` | Secret used to sign access tokens — must be a long, random value |
+| `JWT_ACCESS_TOKEN_EXPIRATION` | Access token lifetime in milliseconds (default `900000` = 15 min) |
+| `JWT_REFRESH_TOKEN_EXPIRATION` | Refresh token lifetime in milliseconds (default `604800000` = 7 days) |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed frontend origins |
+
+Never commit real values for these — `.env`, `.env.local`, `.env.*.local`, and `application-local.*` are
+gitignored.
+
+## 7. Docker Setup
+
+- `backend/Dockerfile` — multi-stage Maven build → Temurin 21 JRE runtime image with an actuator health check.
+- `frontend/Dockerfile` — multi-stage Node 20 build producing a minimal Next.js production image.
+- `docker-compose.yml` — runs all three services locally. The Postgres container is for local development
+  only; deployed environments use Neon.
+
+## 8. Frontend Setup
 
 ```bash
 cd frontend
-cp .env.example .env   # optional, defaults to http://localhost:8080
 npm install
-npm run dev
+npm run dev      # http://localhost:3000
+npm run lint
+npm run test
+npm run build
 ```
 
-## Deployment setup
+## 9. Backend Setup
 
-1. **Neon**: create a project at neon.tech, copy the connection string
-   (host, database, user, password).
-2. **Render**: create a new Blueprint from this repo (it will pick up
-   `render.yaml`), or manually create a Web Service pointing at
-   `backend/Dockerfile`. Set `SPRING_DATASOURCE_URL`,
-   `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` from the Neon
-   connection details.
-3. **GitHub Pages**: in the repo, go to **Settings → Pages → Source** and
-   select **GitHub Actions**. Then go to **Settings → Secrets and variables →
-   Actions → Variables** and add a repository variable `VITE_API_URL` set to
-   the Render service URL. Pushing to `main` runs
-   [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml), which builds
-   the app with that URL baked in and publishes it to
-   `https://<your-username>.github.io/personal-website/`.
-4. **GitHub Actions**: the single workflow in
-   [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) builds/tests
-   the backend and frontend on every push/PR, then (on `main` only) deploys
-   the frontend to Pages. Render auto-deploys on push via its own GitHub
-   integration; optionally set a `RENDER_DEPLOY_HOOK_URL` repo secret to also
-   trigger Render from this workflow.
+```bash
+cd backend
+cp .env.example .env   # fill in local/Neon values, then export them
+mvn spring-boot:run
+```
+
+Swagger UI is available at `http://localhost:8080/swagger-ui.html` once the app is running.
+
+## 10. Database Setup
+
+Local development uses the `postgres` service defined in `docker-compose.yml` (database `finadvisor`,
+user/password `finadvisor`). Deployed environments use a Neon PostgreSQL connection string supplied via
+`DATABASE_URL`/`DATABASE_USERNAME`/`DATABASE_PASSWORD`.
+
+## 11. Flyway Migrations
+
+Migrations live in `backend/src/main/resources/db/migration` and run automatically on startup:
+
+- `V1__create_users_table.sql` — `users` table (auth + risk profile)
+- `V2__create_refresh_tokens_table.sql` — `refresh_tokens` table (FK to `users`, unique token, expiry)
+
+Hibernate's `ddl-auto` is set to `validate` — schema changes must go through new Flyway migrations, never
+manual edits.
+
+## 12. Running Tests
+
+```bash
+# Backend
+cd backend && mvn test
+
+# Frontend
+cd frontend && npm run test
+```
+
+## 13. GitHub Actions / CI-CD
+
+A single workflow, `.github/workflows/ci-cd.yml`, runs on every pull request and push to `main`:
+
+- **`backend-build`** — compiles, tests, and packages the Spring Boot app, and validates the Docker image.
+- **`frontend-build`** — installs dependencies, lints, tests, and builds the Next.js app.
+- **`deploy`** — runs only when both builds succeed **and** the event is a push to `main`. It targets the
+  `owner` GitHub Environment, triggers the Render deploy hook, and publishes a static export of the
+  frontend to GitHub Pages.
+
+Because the `deploy` job is tied to the `owner` environment, it will not run until manually approved.
+To enable this, configure the environment once in the repo: **Settings → Environments → New environment**,
+name it `owner`, and under **Required reviewers** add the repository owner (or whichever
+user/team should approve deploys). Every push to `main` will then build both apps automatically, but the
+actual deployment pauses for that reviewer's approval before it proceeds.
+
+## 14. GitHub Pages Deployment
+
+The frontend is exported as a static site (`output: 'export'`, enabled only when `GITHUB_PAGES=true`) and
+published to GitHub Pages by the `deploy` job.
+
+1. In the repo, go to **Settings → Pages → Build and deployment → Source** and select **GitHub Actions**.
+2. Optionally add a repository variable `NEXT_PUBLIC_API_URL` (**Settings → Secrets and variables →
+   Actions → Variables**) pointing at your Render backend URL — GitHub Pages is static hosting, so this
+   value is baked into the build at deploy time rather than read at runtime.
+3. Approve the `owner` environment when a deploy run pauses for review (see [Section 13](#13-github-actions--cicd)).
+4. Once deployed, the site is live at `https://<github-username>.github.io/personal-website/`.
+
+## 15. Render Deployment
+
+`render.yaml` defines the backend as a Docker web service. In the Render dashboard, set the environment
+variables `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `JWT_SECRET`, `JWT_ACCESS_TOKEN_EXPIRATION`,
+`JWT_REFRESH_TOKEN_EXPIRATION`, and `CORS_ALLOWED_ORIGINS` (the GitHub Pages site URL). Render's health check
+uses the Spring Boot Actuator `/actuator/health` endpoint.
+
+## 16. Neon PostgreSQL Setup
+
+1. Create a project at [neon.tech](https://neon.tech) and copy the connection string.
+2. Set `DATABASE_URL` (with `sslmode=require`), `DATABASE_USERNAME`, and `DATABASE_PASSWORD` as Render
+   environment variables.
+3. Flyway runs automatically against Neon on application startup — no manual schema changes.
+
+## 17. Authentication Flow
+
+1. `POST /api/auth/register` — creates a user, returns an access token (short-lived JWT) and a refresh
+   token (opaque, stored in `refresh_tokens`).
+2. `POST /api/auth/login` — validates credentials with BCrypt, returns the same token pair.
+3. Requests to protected endpoints send `Authorization: Bearer <accessToken>`.
+4. `POST /api/auth/refresh` — exchanges a valid, unexpired refresh token for a new token pair (refresh
+   tokens are rotated — the old one is deleted).
+5. `POST /api/auth/logout` — deletes the refresh token, ending the session.
+6. `GET /api/auth/me` — returns the authenticated user's profile.
+
+On the frontend, tokens and user info are held in a Zustand store (persisted to `localStorage`), an Axios
+interceptor attaches the access token to requests and transparently retries once via `/api/auth/refresh`
+on a 401, and `/dashboard` is protected by a client-side `RequireAuth` guard that redirects to `/login`.
+
+## 18. API Documentation / Swagger
+
+Interactive API docs are served by springdoc-openapi:
+
+- Swagger UI: `/swagger-ui.html`
+- OpenAPI JSON: `/v3/api-docs`
+
+## 19. Phase 1 Features
+
+- Landing page: navigation, hero, features, how it works, investment categories, why choose us,
+  testimonials, FAQ, CTA, footer — responsive with light/dark mode.
+- Auth pages: `/login`, `/register`, `/forgot-password` (UI only), `/verify-email` (placeholder).
+- Protected `/dashboard` with welcome card, portfolio summary, net worth, today's gain/loss, quick actions,
+  recent activity, investment goals, and market snapshot (all placeholder data).
+- JWT authentication API with refresh-token rotation, global exception handling, and Swagger docs.
+- Docker Compose for local development; Dockerfiles for both apps.
+- Separate GitHub Actions workflows for frontend and backend.
+
+## 20. Phase 2 TODOs
+
+- Real portfolio, net worth, and market data integrations (replacing dashboard placeholders).
+- Password reset delivery (email infrastructure) for `/forgot-password`.
+- Email verification delivery and confirmation flow for `/verify-email`.
+- Role-based authorization beyond a single `ROLE_USER`.
+- Refresh token hashing at rest and device/session management.
+- Expanded automated test coverage (integration tests with Testcontainers, E2E tests).
+

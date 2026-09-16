@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   backend-build:
+    name: Backend build & test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,30 +23,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
+          java-version: "21"
           distribution: "temurin"
           cache: "maven"
 
-      - name: Build and test
-        run: mvn -B -q package
+      - name: Compile
+        run: mvn -B -q compile
 
-  backend-deploy:
-    needs: backend-build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      # Render auto-deploys on push via its GitHub integration; this hook is only
-      # needed as a fallback if auto-deploy is disabled.
-      - name: Trigger Render deploy
-        if: env.RENDER_DEPLOY_HOOK_URL != ''
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+      - name: Run unit tests
+        run: mvn -B -q test
+
+      - name: Package application
+        run: mvn -B -q package -DskipTests
+
+      - name: Validate Dockerfile builds
+        run: docker build -t backend-ci-validation .
 
   frontend-build:
+    name: Frontend build & test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -61,31 +59,67 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build
-        # Set VITE_API_URL as a repository variable pointing at the Render backend URL
-        env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build production bundle
         run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://placeholder.onrender.com' }}
 
-      - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: frontend/dist
-
-  frontend-deploy-pages:
-    needs: frontend-build
+  deploy:
+    name: Deploy to Render and GitHub Pages
+    needs: [backend-build, frontend-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pages: write
       id-token: write
+    # Requires an "owner" environment (Settings > Environments) with the repo owner
+    # added under "Required reviewers" so deployment pauses for manual approval.
     environment:
-      name: github-pages
+      name: owner
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+
+      # Render auto-deploys on push via its GitHub integration; this hook is only
+      # needed as a fallback if auto-deploy is disabled.
+      - name: Trigger Render deploy hook
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build static site for GitHub Pages
+        working-directory: frontend
+        env:
+          GITHUB_PAGES: "true"
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://placeholder.onrender.com' }}
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/out
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
