@@ -70,7 +70,7 @@ Render (backend hosting), Neon (managed PostgreSQL).
 │       └── types/           Shared TypeScript types
 ├── docker-compose.yml        Local dev orchestration (frontend + backend + postgres)
 ├── render.yaml                Render Blueprint for the backend
-└── .github/workflows/         frontend.yml and backend.yml CI/CD pipelines
+└── .github/workflows/         ci-cd.yml (build FE+BE, deploy on push to main)
 ```
 
 ## 5. Local Development Setup
@@ -163,19 +163,25 @@ cd frontend && npm run test
 
 ## 13. GitHub Actions / CI-CD
 
-- `.github/workflows/backend.yml` — builds, tests, and packages the Spring Boot app, validates the
-  Docker image, and (on `main`) optionally triggers a Render deploy hook.
-- `.github/workflows/frontend.yml` — installs dependencies, lints, tests, and builds the Next.js app, then
-  (on `main`) deploys to Vercel using the Vercel CLI.
+A single workflow, `.github/workflows/ci-cd.yml`, runs on every pull request and push to `main`:
 
-Both workflows run on pull requests and pushes to `main`, scoped to their respective directories.
+- **`backend-build`** — compiles, tests, and packages the Spring Boot app, and validates the Docker image.
+- **`frontend-build`** — installs dependencies, lints, tests, and builds the Next.js app.
+- **`deploy`** — runs only when both builds succeed **and** the event is a push to `main`. It targets the
+  `production` GitHub Environment, triggers the Render deploy hook, and deploys the frontend to Vercel.
+
+Because the `deploy` job is tied to the `production` environment, it will not run until manually approved.
+To enable this, configure the environment once in the repo: **Settings → Environments → New environment**,
+name it `production`, and under **Required reviewers** add the repository owner (or whichever
+user/team should approve deploys). Every push to `main` will then build both apps automatically, but the
+actual deployment pauses for that reviewer's approval before it proceeds.
 
 ## 14. Vercel Deployment
 
 1. Import this repository into Vercel, set the root directory to `frontend`.
 2. Configure the `NEXT_PUBLIC_API_URL` environment variable to point to your Render backend URL.
 3. Add `VERCEL_TOKEN` (and, if not using `vercel link` locally, `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`) as
-   GitHub repository secrets so `frontend.yml` can deploy on push to `main`.
+   GitHub repository secrets so the `deploy` job in `ci-cd.yml` can deploy on push to `main`.
 
 ## 15. Render Deployment
 
