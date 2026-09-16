@@ -2,7 +2,10 @@
 
 A production-ready foundation for an Indian financial advisory platform: a Next.js frontend, a Spring
 Boot 3 authentication API, and PostgreSQL (Neon in production), wired together with Docker Compose for
-local development and GitHub Actions for CI/CD to Vercel and Render.
+local development and GitHub Actions for CI/CD to GitHub Pages and Render.
+
+**Live site:** https://saiswaroopkuruva.github.io/personal-website/ (published after the first approved
+deploy — see [Section 13](#13-github-actions--cicd)).
 
 ## 1. Project Overview
 
@@ -12,14 +15,14 @@ Phase 1 delivers the foundation of the platform:
 - JWT-based authentication (register, login, refresh, logout, current user)
 - A protected dashboard with placeholder portfolio widgets
 - Local development via Docker Compose (Next.js + Spring Boot + PostgreSQL)
-- CI pipelines for both apps, deploying to Vercel (frontend) and Render (backend)
+- CI pipelines for both apps, deploying to GitHub Pages (frontend) and Render (backend)
 
 ## 2. Architecture
 
 **Hosted:**
 
 ```
-GitHub → GitHub Actions ─┬─→ Vercel (Next.js frontend)
+GitHub → GitHub Actions ─┬─→ GitHub Pages (static Next.js export)
                           └─→ Render (Spring Boot API) → Neon PostgreSQL
 ```
 
@@ -32,7 +35,7 @@ Docker Compose
  └─ postgres   (PostgreSQL, :5432)
 ```
 
-**Request flow:** Browser → Vercel (Next.js) → HTTPS → Render (Spring Boot) → Neon PostgreSQL.
+**Request flow:** Browser → GitHub Pages (static Next.js) → HTTPS → Render (Spring Boot) → Neon PostgreSQL.
 
 ## 3. Tech Stack
 
@@ -42,8 +45,8 @@ Zod, Axios, Zustand, React Query.
 **Backend:** Spring Boot 3, Java 21, Spring Security, Spring Data JPA, PostgreSQL, JWT, Flyway, Lombok,
 Jakarta Validation, springdoc-openapi (Swagger).
 
-**Infrastructure:** Docker/Docker Compose (local), GitHub Actions (CI/CD), Vercel (frontend hosting),
-Render (backend hosting), Neon (managed PostgreSQL).
+**Infrastructure:** Docker/Docker Compose (local), GitHub Actions (CI/CD), GitHub Pages (frontend
+hosting), Render (backend hosting), Neon (managed PostgreSQL).
 
 ## 4. Repository Structure
 
@@ -92,6 +95,10 @@ This starts PostgreSQL, the backend on `http://localhost:8080`, and the frontend
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | Base URL of the backend API (defaults to `http://localhost:8080`) |
+
+GitHub Pages serves static files only, so `NEXT_PUBLIC_API_URL` cannot be read at runtime there — the CI
+`deploy` job bakes it into the build from the `NEXT_PUBLIC_API_URL` repository variable (see
+[Section 14](#14-github-pages-deployment)).
 
 **Backend** (`backend/.env`, see `backend/.env.example`):
 
@@ -168,7 +175,8 @@ A single workflow, `.github/workflows/ci-cd.yml`, runs on every pull request and
 - **`backend-build`** — compiles, tests, and packages the Spring Boot app, and validates the Docker image.
 - **`frontend-build`** — installs dependencies, lints, tests, and builds the Next.js app.
 - **`deploy`** — runs only when both builds succeed **and** the event is a push to `main`. It targets the
-  `production` GitHub Environment, triggers the Render deploy hook, and deploys the frontend to Vercel.
+  `production` GitHub Environment, triggers the Render deploy hook, and publishes a static export of the
+  frontend to GitHub Pages.
 
 Because the `deploy` job is tied to the `production` environment, it will not run until manually approved.
 To enable this, configure the environment once in the repo: **Settings → Environments → New environment**,
@@ -176,18 +184,23 @@ name it `production`, and under **Required reviewers** add the repository owner 
 user/team should approve deploys). Every push to `main` will then build both apps automatically, but the
 actual deployment pauses for that reviewer's approval before it proceeds.
 
-## 14. Vercel Deployment
+## 14. GitHub Pages Deployment
 
-1. Import this repository into Vercel, set the root directory to `frontend`.
-2. Configure the `NEXT_PUBLIC_API_URL` environment variable to point to your Render backend URL.
-3. Add `VERCEL_TOKEN` (and, if not using `vercel link` locally, `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`) as
-   GitHub repository secrets so the `deploy` job in `ci-cd.yml` can deploy on push to `main`.
+The frontend is exported as a static site (`output: 'export'`, enabled only when `GITHUB_PAGES=true`) and
+published to GitHub Pages by the `deploy` job.
+
+1. In the repo, go to **Settings → Pages → Build and deployment → Source** and select **GitHub Actions**.
+2. Optionally add a repository variable `NEXT_PUBLIC_API_URL` (**Settings → Secrets and variables →
+   Actions → Variables**) pointing at your Render backend URL — GitHub Pages is static hosting, so this
+   value is baked into the build at deploy time rather than read at runtime.
+3. Approve the `production` environment when a deploy run pauses for review (see [Section 13](#13-github-actions--cicd)).
+4. Once deployed, the site is live at `https://<github-username>.github.io/personal-website/`.
 
 ## 15. Render Deployment
 
 `render.yaml` defines the backend as a Docker web service. In the Render dashboard, set the environment
 variables `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `JWT_SECRET`, `JWT_ACCESS_TOKEN_EXPIRATION`,
-`JWT_REFRESH_TOKEN_EXPIRATION`, and `CORS_ALLOWED_ORIGINS` (the Vercel frontend URL). Render's health check
+`JWT_REFRESH_TOKEN_EXPIRATION`, and `CORS_ALLOWED_ORIGINS` (the GitHub Pages site URL). Render's health check
 uses the Spring Boot Actuator `/actuator/health` endpoint.
 
 ## 16. Neon PostgreSQL Setup
