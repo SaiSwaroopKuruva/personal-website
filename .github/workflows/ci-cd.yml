@@ -81,10 +81,10 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    # Requires a "production" environment (Settings > Environments) with the repo owner
+    # Requires an "owner" environment (Settings > Environments) with the repo owner
     # added under "Required reviewers" so deployment pauses for manual approval.
     environment:
-      name: production
+      name: owner
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4

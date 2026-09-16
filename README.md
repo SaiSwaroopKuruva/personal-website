@@ -175,12 +175,12 @@ A single workflow, `.github/workflows/ci-cd.yml`, runs on every pull request and
 - **`backend-build`** — compiles, tests, and packages the Spring Boot app, and validates the Docker image.
 - **`frontend-build`** — installs dependencies, lints, tests, and builds the Next.js app.
 - **`deploy`** — runs only when both builds succeed **and** the event is a push to `main`. It targets the
-  `production` GitHub Environment, triggers the Render deploy hook, and publishes a static export of the
+  `owner` GitHub Environment, triggers the Render deploy hook, and publishes a static export of the
   frontend to GitHub Pages.
 
-Because the `deploy` job is tied to the `production` environment, it will not run until manually approved.
+Because the `deploy` job is tied to the `owner` environment, it will not run until manually approved.
 To enable this, configure the environment once in the repo: **Settings → Environments → New environment**,
-name it `production`, and under **Required reviewers** add the repository owner (or whichever
+name it `owner`, and under **Required reviewers** add the repository owner (or whichever
 user/team should approve deploys). Every push to `main` will then build both apps automatically, but the
 actual deployment pauses for that reviewer's approval before it proceeds.
 
@@ -193,7 +193,7 @@ published to GitHub Pages by the `deploy` job.
 2. Optionally add a repository variable `NEXT_PUBLIC_API_URL` (**Settings → Secrets and variables →
    Actions → Variables**) pointing at your Render backend URL — GitHub Pages is static hosting, so this
    value is baked into the build at deploy time rather than read at runtime.
-3. Approve the `production` environment when a deploy run pauses for review (see [Section 13](#13-github-actions--cicd)).
+3. Approve the `owner` environment when a deploy run pauses for review (see [Section 13](#13-github-actions--cicd)).
 4. Once deployed, the site is live at `https://<github-username>.github.io/personal-website/`.
 
 ## 15. Render Deployment
