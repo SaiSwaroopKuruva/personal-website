@@ -30,10 +30,18 @@ backend/target/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/.next/
+frontend/out/
+frontend/coverage/
 
 # Environment files
 .env
 .env.local
+.env.*.local
 *.env
 !*.env.example
+
+# Application secrets
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-local.properties
 
