@@ -120,17 +120,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.log(Level.SEVERE, "Unhandled exception on " + sanitizeForLog(request.getRequestURI()), ex);
+        log.log(Level.SEVERE, "Unhandled exception occurred", ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
     }
 
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, HttpServletRequest request) {
         ErrorResponse body = ErrorResponse.of(status.value(), status.getReasonPhrase(), message, request.getRequestURI());
         return ResponseEntity.status(status).body(body);
-    }
-
-    /** Strips CR/LF so untrusted request data cannot forge additional log entries (log injection). */
-    private String sanitizeForLog(String value) {
-        return value == null ? null : value.replaceAll("[\r\n]", "_");
     }
 }
