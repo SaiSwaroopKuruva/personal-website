@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, TrendingUp } from "lucide-react";
+import { LogOut, TrendingUp, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useAuthStore } from "@/store/auth-store";
@@ -22,6 +22,11 @@ export function DashboardNav() {
 
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={ROUTES.profile}>
+              <UserCircle className="h-4 w-4" /> Profile
+            </Link>
+          </Button>
           <ThemeToggle />
           <Button variant="outline" size="sm" onClick={() => logout.mutate()} isLoading={logout.isPending}>
             <LogOut className="h-4 w-4" /> Log out

@@ -35,6 +35,10 @@ public class RefreshToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "device_id")
+    private UserDevice device;
+
     @Column(nullable = false, unique = true, length = 512)
     private String token;
 

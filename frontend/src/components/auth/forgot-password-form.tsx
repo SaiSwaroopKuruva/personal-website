@@ -8,17 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from "@/lib/validations/auth";
+import { useForgotPassword } from "@/hooks/use-security";
 
 export function ForgotPasswordForm() {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const forgotPassword = useForgotPassword();
   const form = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: "" },
   });
 
-  // Phase 1: UI only — password reset delivery is not yet implemented on the backend.
-  function onSubmit(_values: ForgotPasswordFormValues) {
-    setIsSubmitted(true);
+  function onSubmit(values: ForgotPasswordFormValues) {
+    forgotPassword.mutate(values.email, { onSuccess: () => setIsSubmitted(true) });
   }
 
   if (isSubmitted) {
@@ -49,7 +50,7 @@ export function ForgotPasswordForm() {
           )}
         />
 
-        <Button type="submit" className="w-full" isLoading={form.formState.isSubmitting}>
+        <Button type="submit" className="w-full" isLoading={forgotPassword.isPending}>
           Send reset instructions
         </Button>
       </form>

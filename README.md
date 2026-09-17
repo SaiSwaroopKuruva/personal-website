@@ -54,20 +54,27 @@ hosting), Render (backend hosting), Neon (managed PostgreSQL).
 .
 ├── backend/                Spring Boot 3 API
 │   └── src/main/java/finadvisor/
-│       ├── controller/     REST controllers
-│       ├── service/        Business logic (+ impl/ package)
+│       ├── controller/     REST controllers (auth, profile, email, password, security, risk, notifications, admin)
+│       ├── service/        Business logic interfaces (+ impl/ package)
 │       ├── repository/     Spring Data JPA repositories
-│       ├── dto/            Request/response DTOs
-│       ├── entity/         JPA entities
-│       ├── config/         Security, CORS, JWT, OpenAPI configuration
-│       ├── security/       JWT filter, user principal, user details service
+│       ├── dto/             Request/response DTOs, organized into profile/ risk/ security/ verification/
+│       │                    notification/ admin/ sub-packages
+│       ├── entity/         JPA entities and enums
+│       ├── mapper/          Entity ↔ DTO mapping components
+│       ├── validator/       Custom Jakarta Validation constraints (PAN, PIN code, password strength)
+│       ├── risk/            Configurable risk questionnaire catalog + scoring engine
+│       ├── notification/    Outbound email abstraction
+│       ├── events/          Domain events (audit trail)
+│       ├── listener/        Async event listeners (audit log persistence)
+│       ├── config/         Security, CORS, JWT, upload, OpenAPI configuration
+│       ├── security/       JWT filter, user principal, user details service, request metadata
 │       ├── exception/      Custom exceptions + global exception handler
-│       └── util/           Shared constants
+│       └── util/           Shared constants and helpers
 ├── frontend/                Next.js App Router application
 │   └── src/
-│       ├── app/             Routes (landing, auth pages, dashboard)
-│       ├── components/      UI primitives, layout, landing, auth, dashboard
-│       ├── hooks/           React Query hooks for auth
+│       ├── app/             Routes (landing, auth pages, dashboard, profile/*)
+│       ├── components/      UI primitives, layout, landing, auth, dashboard, profile
+│       ├── hooks/           React Query hooks (auth, profile, risk, security, notifications)
 │       ├── lib/             Axios client, API services, validation schemas
 │       ├── store/           Zustand auth store
 │       └── types/           Shared TypeScript types
@@ -110,6 +117,8 @@ GitHub Pages serves static files only, so `NEXT_PUBLIC_API_URL` cannot be read a
 | `JWT_ACCESS_TOKEN_EXPIRATION` | Access token lifetime in milliseconds (default `900000` = 15 min) |
 | `JWT_REFRESH_TOKEN_EXPIRATION` | Refresh token lifetime in milliseconds (default `604800000` = 7 days) |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed frontend origins |
+| `UPLOAD_DIR` | Local directory for uploaded profile photos (default `uploads`) |
+| `UPLOAD_MAX_FILE_SIZE_BYTES` | Max profile photo size in bytes (default `2097152` = 2MB) |
 
 Never commit real values for these — `.env`, `.env.local`, `.env.*.local`, and `application-local.*` are
 gitignored.
@@ -154,6 +163,12 @@ Migrations live in `backend/src/main/resources/db/migration` and run automatical
 
 - `V1__create_users_table.sql` — `users` table (auth + risk profile)
 - `V2__create_refresh_tokens_table.sql` — `refresh_tokens` table (FK to `users`, unique token, expiry)
+- `V3__user_management_and_risk_profile.sql` — Phase 2 schema (see [Section 21](#21-phase-2-user-management-security--risk-profiling)):
+  - Extends `users` with `role`, profile/KYC fields, verification flags, investor preference fields,
+    `notification_preferences` (JSONB), `profile_picture`, `last_login`, `status`, `created_by`/`updated_by`.
+  - Adds `device_id` to `refresh_tokens` (links a session to the device it was issued to).
+  - New tables: `user_addresses`, `user_devices`, `email_verification_tokens`, `password_reset_tokens`,
+    `password_history`, `risk_assessment_results`, `audit_logs`.
 
 Hibernate's `ddl-auto` is set to `validate` — schema changes must go through new Flyway migrations, never
 manual edits.
@@ -221,6 +236,12 @@ uses the Spring Boot Actuator `/actuator/health` endpoint.
 5. `POST /api/auth/logout` — deletes the refresh token, ending the session.
 6. `GET /api/auth/me` — returns the authenticated user's profile.
 
+Login and register also record the device (IP + browser, upserted into `user_devices`) and update
+`users.last_login`; login is rejected with `403` if the account is `SUSPENDED`/`DEACTIVATED`, and the JWT
+filter re-checks account status on every request via `UserPrincipal.isEnabled()`. See
+[Section 21](#21-phase-2-user-management-security--risk-profiling) for the full Phase 2 user management,
+security, and risk profiling module built on top of this foundation.
+
 On the frontend, tokens and user info are held in a Zustand store (persisted to `localStorage`), an Axios
 interceptor attaches the access token to requests and transparently retries once via `/api/auth/refresh`
 on a 401, and `/dashboard` is protected by a client-side `RequireAuth` guard that redirects to `/login`.
@@ -246,9 +267,146 @@ Interactive API docs are served by springdoc-openapi:
 ## 20. Phase 2 TODOs
 
 - Real portfolio, net worth, and market data integrations (replacing dashboard placeholders).
-- Password reset delivery (email infrastructure) for `/forgot-password`.
-- Email verification delivery and confirmation flow for `/verify-email`.
-- Role-based authorization beyond a single `ROLE_USER`.
-- Refresh token hashing at rest and device/session management.
+- Role-based authorization beyond `USER`/`ADMIN` (e.g. advisor/compliance roles).
+- Refresh token hashing at rest.
 - Expanded automated test coverage (integration tests with Testcontainers, E2E tests).
+
+## 21. Phase 2: User Management, Security & Risk Profiling
+
+Phase 2 adds a complete user management module on top of the Phase 1 auth foundation: profile
+management, email verification, password management, account security, an investor risk assessment
+engine, notification preferences, and admin support — all backed by audit logging.
+
+### 21.1 Profile Module
+
+`ProfileController` (`/api/profile`) exposes profile read/update, photo upload (validated local file
+storage served from `/uploads/**`), investor preferences, preferred language, the quick "primary address"
+fields, and a full address book (`/api/profile/addresses`, backed by the `user_addresses` table, supports
+multiple HOME/WORK/OTHER addresses with a single default). All PAN, PIN code and password fields are
+validated with custom Jakarta Validation constraints (`@ValidPan`, `@ValidPostalCode`, `@StrongPassword`).
+
+### 21.2 Email Verification
+
+`EmailVerificationController` (`/api/email`) issues single-use, 24-hour tokens (`email_verification_tokens`)
+and marks `users.email_verified` once confirmed. `LoggingEmailSender` (`finadvisor.notification`) logs
+outbound emails instead of dispatching them through a real provider — see [Known Limitations](#215-known-limitations).
+
+### 21.3 Password Management & Account Security
+
+`PasswordController` (`/api/password`) implements forgot/reset/change flows with:
+
+- 1-hour, single-use reset tokens (`password_reset_tokens`).
+- Reuse prevention against the current password and the last 5 password hashes (`password_history`).
+- `@StrongPassword`: minimum 12 characters, upper/lowercase, digit, special character, common-password
+  blocklist.
+- Reset and forced logout of all sessions on password reset.
+
+`SecurityController` (`/api/security`) surfaces devices (`user_devices`, upserted on every login with
+IP/browser/last-seen), a login/security-event history (backed by `audit_logs`), "logout of all devices",
+and per-device revocation (deletes the device's linked refresh tokens via the new `refresh_tokens.device_id`
+column).
+
+### 21.4 Risk Assessment Engine
+
+A 15-question investor questionnaire (age, income, dependents, horizon, experience, market knowledge,
+reaction to loss, emergency fund, objective, expected returns, current investments, debt obligations,
+liquidity needs, risk appetite, tax-saving preference) is defined in `RiskQuestionCatalog`
+(`finadvisor.risk`) — each option carries a 0–100 score. `RiskEngine` averages the selected scores into a
+single 0–100 score and maps it to a 5-tier `RiskLevel`:
+
+| Score | Risk Level |
+|---|---|
+| 0–25 | Conservative |
+| 26–50 | Moderately Conservative |
+| 51–70 | Balanced |
+| 71–85 | Growth |
+| 86–100 | Aggressive |
+
+Each level maps to a recommendation: a summary, a suggested allocation across Debt / Large Cap / Mid Cap /
+Small Cap / Gold / International / Cash, a suggested investment horizon, and suggested fund categories.
+`RiskController` (`/api/risk`) exposes `GET /questions`, `POST /submit`, `GET /latest`, and
+`GET /history` (paginated). Submitting an assessment also updates the user's coarse `riskProfile`
+(Conservative/Moderate/Aggressive, used elsewhere in the platform) for backward compatibility with Phase 1.
+
+### 21.5 Notification Preferences
+
+`NotificationController` (`/api/notifications/preferences`) reads/replaces an 11-flag preference set
+(email, SMS, push, in-app, marketing, investment alerts, goal reminders, market updates, security alerts,
+weekly/monthly reports) stored as JSONB on `users.notification_preferences`.
+
+### 21.6 Admin Support
+
+`AdminUserController` (`/api/admin/users`, `@PreAuthorize("hasRole('ADMIN')")`) lets an administrator list
+users, view a full profile, suspend/activate an account (suspension immediately revokes all refresh tokens
+and blocks further login/JWT authentication), reset a user's risk profile/history, and view verification
+status. A new `role` column (`USER`/`ADMIN`, default `USER`) was added to `users` to support this
+authorization boundary.
+
+### 21.7 Audit Logging
+
+Profile updates, password changes, email verification, security actions (login, logout-all, device
+revocation), and risk submissions publish a Spring `ApplicationEvent` (`AuditEvent`) that an async
+`AuditEventListener` persists to `audit_logs` with the user, action, IP address, and timestamp — decoupling
+business logic from audit persistence.
+
+### 21.8 Frontend
+
+New authenticated routes under `/profile`: `/profile` (overview with risk meter + allocation chart),
+`/profile/edit`, `/profile/address`, `/profile/preferences`, `/profile/risk` (questionnaire wizard),
+`/profile/security` (login history timeline), `/profile/devices`, `/profile/notifications`,
+`/profile/change-password`, and `/profile/verify-email`. Reusable components: `ProfileCard`, `RiskMeter`,
+`CircularProgress`, `AllocationChart`, `QuestionnaireWizard`, `ProgressBar`, `SecurityTimeline`,
+`DeviceCard`, `NotificationCard`, `AddressCard`, plus shared `EmptyState`/`ErrorState`/`Skeleton` states.
+The public `/verify-email` and new `/reset-password` pages now call the real verification/reset APIs
+(replacing the Phase 1 placeholders).
+
+### 21.9 Architecture Decisions
+
+- **Layering kept consistent with Phase 1**: controllers/services/repositories stay in the existing
+  `controller`/`service`/`service.impl`/`repository` packages; the new `profile`/`risk`/`notification`/
+  `verification`/`security`/`preferences` groupings from the spec are expressed as **DTO sub-packages**
+  (`dto.profile`, `dto.risk`, etc.) rather than duplicating the technical layers, to avoid fragmenting the
+  established architecture.
+- **Mapping**: manual mapper components (`finadvisor.mapper`) were used instead of adding MapStruct, to
+  avoid a new annotation-processor dependency for a Phase 1 codebase that already uses simple manual
+  mapping methods.
+- **Device-session linkage**: `refresh_tokens.device_id` (nullable FK to `user_devices`) allows a single
+  device to be revoked along with its active session(s).
+- **Risk level vs. risk profile**: the fine-grained 5-tier `RiskLevel` (assessment results) is kept
+  separate from the coarse 3-tier `RiskProfile` already used across Phase 1 (dashboard, register form);
+  submitting an assessment keeps the latter in sync for backward compatibility.
+- **File uploads**: profile photos are validated (size, MIME type) and stored on local disk under a
+  configurable `app.upload.dir`, served via a Spring resource handler at `/uploads/**` — no new cloud
+  storage dependency was introduced for this phase.
+
+### 21.10 Security Considerations
+
+- Passwords: BCrypt hashing, 12+ character minimum with complexity rules, reuse prevention, current-password
+  verification on change, and full session revocation on reset.
+- Forgot-password does not reveal whether an email is registered (mitigates account enumeration).
+- Verification/reset tokens are single-use, time-boxed, and invalidated on use or superseded by a new request.
+- Suspended/deactivated accounts are blocked at both login (`AccountNotActiveException`) and JWT
+  authentication (`UserPrincipal.isEnabled()`), and have their sessions revoked immediately on suspension.
+- Admin endpoints are protected by method-level `@PreAuthorize("hasRole('ADMIN')")` (`@EnableMethodSecurity`).
+- Uploaded photos are restricted to PNG/JPEG/WEBP, size-capped, and stored under randomly generated
+  filenames (no user-controlled path segments) to prevent path traversal and content-type abuse.
+- All new endpoints are behind JWT authentication except the intentionally public token-based flows
+  (`/api/email/verify`, `/api/password/forgot`, `/api/password/reset`) and static `/uploads/**` assets.
+
+### 21.11 Known Limitations
+
+- Outbound email (verification, password reset) is logged, not actually delivered — wire `EmailSender` to
+  a real provider (SES, SendGrid, etc.) before production use.
+- The risk questionnaire is defined in code (`RiskQuestionCatalog`) rather than the database; making it
+  admin-editable is deferred to a future phase.
+- Device fingerprinting is limited to IP address + coarse browser family parsed from `User-Agent`.
+
+### 21.12 Remaining Work for Phase 3 (Mutual Fund Platform)
+
+- Fund catalog, NAV data ingestion, and fund detail/comparison pages.
+- Portfolio construction, order placement, and SIP management against the risk-based allocation
+  recommendations produced in Phase 2.
+- Real net worth, holdings, and transaction history (replacing dashboard placeholders).
+- KYC document upload/verification workflow (the `kyc_status` field is modeled but not yet actionable).
+- Payment/bank account linking for investments and withdrawals.
 
