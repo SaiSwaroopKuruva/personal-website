@@ -44,7 +44,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({InvalidCredentialsException.class, BadCredentialsException.class})
-    public ResponseEntity<ErrorResponse> handleInvalidCredentials(RuntimeException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(HttpServletRequest request) {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password", request);
     }
 
@@ -109,23 +109,28 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleAuthentication(HttpServletRequest request) {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication is required to access this resource", request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleAccessDenied(HttpServletRequest request) {
         return buildResponse(HttpStatus.FORBIDDEN, "You do not have permission to access this resource", request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.log(Level.SEVERE, "Unhandled exception on " + request.getRequestURI(), ex);
+        log.log(Level.SEVERE, "Unhandled exception on " + sanitizeForLog(request.getRequestURI()), ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
     }
 
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, HttpServletRequest request) {
         ErrorResponse body = ErrorResponse.of(status.value(), status.getReasonPhrase(), message, request.getRequestURI());
         return ResponseEntity.status(status).body(body);
+    }
+
+    /** Strips CR/LF so untrusted request data cannot forge additional log entries (log injection). */
+    private String sanitizeForLog(String value) {
+        return value == null ? null : value.replaceAll("[\r\n]", "_");
     }
 }
