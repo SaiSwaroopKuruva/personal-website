@@ -26,7 +26,7 @@ export function Footer() {
         <div>
           <div className="flex items-center gap-2 font-semibold">
             <TrendingUp className="h-6 w-6 text-primary" />
-            <span>NiveshPath</span>
+            <span>FinAdvisor</span>
           </div>
           <p className="mt-3 max-w-xs text-sm text-muted-foreground">
             Thoughtful, transparent financial advisory built for every stage of your investing journey in India.
@@ -49,7 +49,7 @@ export function Footer() {
         ))}
       </div>
       <div className="border-t border-border/60 py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} NiveshPath. All rights reserved. Investments are subject to market risks.
+        © {new Date().getFullYear()} FinAdvisor. All rights reserved. Investments are subject to market risks.
       </div>
     </footer>
   );

@@ -6,7 +6,7 @@ const TESTIMONIALS = [
     name: "Priya Sharma",
     role: "Software Engineer, Bengaluru",
     quote:
-      "NiveshPath helped me build a clear roadmap for my retirement and my daughter's education — all in one dashboard.",
+      "FinAdvisor helped me build a clear roadmap for my retirement and my daughter's education — all in one dashboard.",
   },
   {
     name: "Rohan Mehta",

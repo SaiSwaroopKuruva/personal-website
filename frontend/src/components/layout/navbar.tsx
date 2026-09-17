@@ -23,7 +23,7 @@ export function Navbar() {
       <div className="container flex h-16 items-center justify-between">
         <Link href={ROUTES.home} className="flex items-center gap-2 font-semibold">
           <TrendingUp className="h-6 w-6 text-primary" />
-          <span>NiveshPath</span>
+          <span>FinAdvisor</span>
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

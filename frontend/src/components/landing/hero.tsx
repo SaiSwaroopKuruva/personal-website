@@ -21,7 +21,7 @@ export function Hero() {
         </h1>
 
         <p className="max-w-2xl animate-fade-in text-balance text-lg text-muted-foreground">
-          NiveshPath brings personalized investment planning, goal tracking, and portfolio insights to every Indian
+          FinAdvisor brings personalized investment planning, goal tracking, and portfolio insights to every Indian
           investor — backed by transparent, data-driven guidance.
         </p>
 

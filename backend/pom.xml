@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
-    <artifactId>helloworld</artifactId>
+    <groupId>finadvisor</groupId>
+    <artifactId>finadvisor</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>helloworld</name>
-    <description>Financial advisor platform API</description>
+    <name>finadvisor</name>
+    <description>FinAdvisor platform API</description>
 
     <properties>
         <java.version>21</java.version>

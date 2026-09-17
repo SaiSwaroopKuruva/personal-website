@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "NiveshPath | Financial Advisory for India",
+  title: "FinAdvisor | Financial Advisory for India",
   description:
     "A premium financial advisory platform helping Indians plan, invest, and grow their wealth with confidence.",
 };
