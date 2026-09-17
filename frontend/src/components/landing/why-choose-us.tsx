@@ -13,9 +13,9 @@ export function WhyChooseUs() {
     <section id="why-us" className="bg-muted/30 py-24">
       <div className="container grid items-center gap-12 lg:grid-cols-2">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Why investors choose NiveshPath</h2>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Why investors choose FinAdvisor</h2>
           <p className="mt-4 text-muted-foreground">
-            We built NiveshPath around one principle: your financial success comes first. Every recommendation is
+            We built FinAdvisor around one principle: your financial success comes first. Every recommendation is
             transparent, explainable, and aligned with your goals.
           </p>
           <ul className="mt-8 space-y-4">

@@ -1,4 +1,4 @@
-# NiveshPath — Financial Advisor Platform
+# FinAdvisor — Financial Advisor Platform
 
 A production-ready foundation for an Indian financial advisory platform: a Next.js frontend, a Spring
 Boot 3 authentication API, and PostgreSQL (Neon in production), wired together with Docker Compose for
@@ -53,7 +53,7 @@ hosting), Render (backend hosting), Neon (managed PostgreSQL).
 ```
 .
 ├── backend/                Spring Boot 3 API
-│   └── src/main/java/com/example/helloworld/
+│   └── src/main/java/finadvisor/
 │       ├── controller/     REST controllers
 │       ├── service/        Business logic (+ impl/ package)
 │       ├── repository/     Spring Data JPA repositories

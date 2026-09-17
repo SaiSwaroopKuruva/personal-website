@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 
 const FAQS = [
   {
-    question: "Is NiveshPath regulated?",
+    question: "Is FinAdvisor regulated?",
     answer:
-      "NiveshPath follows SEBI-aligned advisory practices and partners with registered investment advisors to guide recommendations.",
+      "FinAdvisor follows SEBI-aligned advisory practices and partners with registered investment advisors to guide recommendations.",
   },
   {
     question: "How much does it cost to get started?",
