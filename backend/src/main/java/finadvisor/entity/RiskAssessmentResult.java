@@ -2,30 +2,35 @@ package finadvisor.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "refresh_tokens")
+@Table(name = "risk_assessment_results")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RefreshToken {
+public class RiskAssessmentResult {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -35,17 +40,22 @@ public class RefreshToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "device_id")
-    private UserDevice device;
+    @Column(nullable = false)
+    private int score;
 
-    @Column(nullable = false, unique = true, length = 512)
-    private String token;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "risk_level", nullable = false, length = 30)
+    private RiskLevel riskLevel;
 
-    @Column(name = "expiry_date", nullable = false)
-    private Instant expiryDate;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private RiskRecommendation recommendation;
 
-    public boolean isExpired() {
-        return expiryDate.isBefore(Instant.now());
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    void onCreate() {
+        this.createdAt = Instant.now();
     }
 }

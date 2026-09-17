@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,13 +20,13 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "refresh_tokens")
+@Table(name = "user_devices")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RefreshToken {
+public class UserDevice {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -35,17 +36,27 @@ public class RefreshToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "device_id")
-    private UserDevice device;
+    @Column(name = "device_name", length = 150)
+    private String deviceName;
 
-    @Column(nullable = false, unique = true, length = 512)
-    private String token;
+    @Column(length = 150)
+    private String browser;
 
-    @Column(name = "expiry_date", nullable = false)
-    private Instant expiryDate;
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
 
-    public boolean isExpired() {
-        return expiryDate.isBefore(Instant.now());
+    @Column(name = "last_login", nullable = false)
+    private Instant lastLogin;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        this.createdAt = now;
+        if (this.lastLogin == null) {
+            this.lastLogin = now;
+        }
     }
 }
