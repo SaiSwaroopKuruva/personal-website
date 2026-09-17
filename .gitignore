@@ -33,6 +33,13 @@ frontend/.vite/
 frontend/.next/
 frontend/out/
 frontend/coverage/
+*.tsbuildinfo
+
+# Editor
+.vscode/
+
+# Local uploads (profile photos, etc.)
+backend/uploads/
 
 # Environment files
 .env
