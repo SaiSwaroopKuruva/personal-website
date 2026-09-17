@@ -5,13 +5,18 @@ import finadvisor.dto.auth.RefreshTokenRequest;
 import finadvisor.dto.auth.RegisterRequest;
 import finadvisor.entity.RefreshToken;
 import finadvisor.entity.RiskProfile;
+import finadvisor.entity.Role;
 import finadvisor.entity.User;
+import finadvisor.entity.UserStatus;
 import finadvisor.exception.EmailAlreadyExistsException;
 import finadvisor.exception.InvalidCredentialsException;
 import finadvisor.exception.InvalidRefreshTokenException;
 import finadvisor.exception.MobileAlreadyExistsException;
 import finadvisor.repository.RefreshTokenRepository;
+import finadvisor.repository.UserDeviceRepository;
 import finadvisor.repository.UserRepository;
+import finadvisor.security.RequestMetadata;
+import finadvisor.security.RequestMetadataProvider;
 import finadvisor.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
@@ -43,16 +49,26 @@ class AuthServiceImplTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     @Mock
+    private UserDeviceRepository userDeviceRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private RequestMetadataProvider requestMetadataProvider;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthServiceImpl(userRepository, refreshTokenRepository, passwordEncoder, jwtService);
+        authService = new AuthServiceImpl(userRepository, refreshTokenRepository, userDeviceRepository,
+                passwordEncoder, jwtService, requestMetadataProvider, eventPublisher);
     }
 
     private User sampleUser() {
@@ -64,6 +80,8 @@ class AuthServiceImplTest {
                 .mobile("9876543210")
                 .password("hashed-password")
                 .riskProfile(RiskProfile.MODERATE)
+                .role(Role.USER)
+                .status(UserStatus.ACTIVE)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -82,6 +100,9 @@ class AuthServiceImplTest {
         when(jwtService.generateAccessToken(savedUser)).thenReturn("access-token");
         when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
         when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(requestMetadataProvider.current()).thenReturn(new RequestMetadata("127.0.0.1", "test-agent"));
+        when(userDeviceRepository.findByUser_IdAndIpAddressAndBrowser(any(), any(), any())).thenReturn(Optional.empty());
+        when(userDeviceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(refreshTokenRepository.save(any(RefreshToken.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -125,6 +146,10 @@ class AuthServiceImplTest {
         when(jwtService.generateAccessToken(user)).thenReturn("access-token");
         when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
         when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(requestMetadataProvider.current()).thenReturn(new RequestMetadata("127.0.0.1", "test-agent"));
+        when(userDeviceRepository.findByUser_IdAndIpAddressAndBrowser(any(), any(), any())).thenReturn(Optional.empty());
+        when(userDeviceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class))).thenReturn(user);
         when(refreshTokenRepository.save(any(RefreshToken.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -169,6 +194,10 @@ class AuthServiceImplTest {
         when(jwtService.generateAccessToken(user)).thenReturn("new-access-token");
         when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
         when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(requestMetadataProvider.current()).thenReturn(new RequestMetadata("127.0.0.1", "test-agent"));
+        when(userDeviceRepository.findByUser_IdAndIpAddressAndBrowser(any(), any(), any())).thenReturn(Optional.empty());
+        when(userDeviceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class))).thenReturn(user);
         when(refreshTokenRepository.save(any(RefreshToken.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 

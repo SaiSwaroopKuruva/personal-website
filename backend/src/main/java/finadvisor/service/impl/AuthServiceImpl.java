@@ -7,16 +7,25 @@ import finadvisor.dto.auth.RegisterRequest;
 import finadvisor.dto.auth.UserResponse;
 import finadvisor.entity.RefreshToken;
 import finadvisor.entity.User;
+import finadvisor.entity.UserDevice;
+import finadvisor.entity.UserStatus;
+import finadvisor.events.AuditEvent;
+import finadvisor.exception.AccountNotActiveException;
 import finadvisor.exception.EmailAlreadyExistsException;
 import finadvisor.exception.InvalidCredentialsException;
 import finadvisor.exception.InvalidRefreshTokenException;
 import finadvisor.exception.MobileAlreadyExistsException;
 import finadvisor.exception.UserNotFoundException;
 import finadvisor.repository.RefreshTokenRepository;
+import finadvisor.repository.UserDeviceRepository;
 import finadvisor.repository.UserRepository;
+import finadvisor.security.RequestMetadata;
+import finadvisor.security.RequestMetadataProvider;
 import finadvisor.service.AuthService;
 import finadvisor.service.JwtService;
+import finadvisor.util.UserAgentParser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,8 +40,11 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserDeviceRepository userDeviceRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RequestMetadataProvider requestMetadataProvider;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -53,6 +65,8 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
+        eventPublisher.publishEvent(new AuditEvent(savedUser.getId(), "REGISTER", "New account registered",
+                requestMetadataProvider.current().ipAddress()));
         return buildAuthResponse(savedUser);
     }
 
@@ -65,6 +79,13 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new AccountNotActiveException("Your account is " + user.getStatus().name().toLowerCase()
+                    + ". Please contact support for assistance.");
+        }
+
+        eventPublisher.publishEvent(new AuditEvent(user.getId(), "LOGIN", "User logged in",
+                requestMetadataProvider.current().ipAddress()));
         return buildAuthResponse(user);
     }
 
@@ -98,13 +119,34 @@ public class AuthServiceImpl implements AuthService {
 
     private AuthResponse buildAuthResponse(User user) {
         String accessToken = jwtService.generateAccessToken(user);
-        String refreshTokenValue = createRefreshToken(user);
+        UserDevice device = recordLoginDevice(user);
+        String refreshTokenValue = createRefreshToken(user, device);
+        user.setLastLogin(Instant.now());
+        userRepository.save(user);
         return AuthResponse.of(accessToken, refreshTokenValue, jwtService.getAccessTokenExpirationSeconds(), toUserResponse(user));
     }
 
-    private String createRefreshToken(User user) {
+    private UserDevice recordLoginDevice(User user) {
+        RequestMetadata metadata = requestMetadataProvider.current();
+        String browser = UserAgentParser.parseBrowser(metadata.userAgent());
+        return userDeviceRepository.findByUser_IdAndIpAddressAndBrowser(user.getId(), metadata.ipAddress(), browser)
+                .map(existing -> {
+                    existing.setLastLogin(Instant.now());
+                    return userDeviceRepository.save(existing);
+                })
+                .orElseGet(() -> userDeviceRepository.save(UserDevice.builder()
+                        .user(user)
+                        .deviceName(browser + " device")
+                        .browser(browser)
+                        .ipAddress(metadata.ipAddress())
+                        .lastLogin(Instant.now())
+                        .build()));
+    }
+
+    private String createRefreshToken(User user, UserDevice device) {
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
+                .device(device)
                 .token(UUID.randomUUID().toString())
                 .expiryDate(Instant.now().plusMillis(jwtService.getRefreshTokenExpirationMs()))
                 .build();
