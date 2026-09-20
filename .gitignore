@@ -24,22 +24,22 @@ hs_err_pid*
 replay_pid*
 
 # Maven
-backend/target/
+app/api/target/
 
 # Node / frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/.next/
-frontend/out/
-frontend/coverage/
+app/web/node_modules/
+app/web/dist/
+app/web/.vite/
+app/web/.next/
+app/web/out/
+app/web/coverage/
 *.tsbuildinfo
 
 # Editor
 .vscode/
 
 # Local uploads (profile photos, etc.)
-backend/uploads/
+app/api/uploads/
 
 # Environment files
 .env
@@ -49,6 +49,6 @@ backend/uploads/
 !*.env.example
 
 # Application secrets
-backend/src/main/resources/application-local.yml
-backend/src/main/resources/application-local.properties
+app/api/src/main/resources/application-local.yml
+app/api/src/main/resources/application-local.properties
 

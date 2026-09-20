@@ -52,34 +52,37 @@ hosting), Render (backend hosting), Neon (managed PostgreSQL).
 
 ```
 .
-├── backend/                Spring Boot 3 API
-│   └── src/main/java/finadvisor/
-│       ├── controller/     REST controllers (auth, profile, email, password, security, risk, notifications, admin)
-│       ├── service/        Business logic interfaces (+ impl/ package)
-│       ├── repository/     Spring Data JPA repositories
-│       ├── dto/             Request/response DTOs, organized into profile/ risk/ security/ verification/
-│       │                    notification/ admin/ sub-packages
-│       ├── entity/         JPA entities and enums
-│       ├── mapper/          Entity ↔ DTO mapping components
-│       ├── validator/       Custom Jakarta Validation constraints (PAN, PIN code, password strength)
-│       ├── risk/            Configurable risk questionnaire catalog + scoring engine
-│       ├── notification/    Outbound email abstraction
-│       ├── events/          Domain events (audit trail)
-│       ├── listener/        Async event listeners (audit log persistence)
-│       ├── config/         Security, CORS, JWT, upload, OpenAPI configuration
-│       ├── security/       JWT filter, user principal, user details service, request metadata
-│       ├── exception/      Custom exceptions + global exception handler
-│       └── util/           Shared constants and helpers
-├── frontend/                Next.js App Router application
-│   └── src/
-│       ├── app/             Routes (landing, auth pages, dashboard, profile/*)
-│       ├── components/      UI primitives, layout, landing, auth, dashboard, profile
-│       ├── hooks/           React Query hooks (auth, profile, risk, security, notifications)
-│       ├── lib/             Axios client, API services, validation schemas
-│       ├── store/           Zustand auth store
-│       └── types/           Shared TypeScript types
-├── docker-compose.yml        Local dev orchestration (frontend + backend + postgres)
-├── render.yaml                Render Blueprint for the backend
+├── app/
+│   ├── api/                 Spring Boot 3 API
+│   │   └── src/main/java/finadvisor/
+│   │       ├── controller/     REST controllers (auth, profile, email, password, security, risk, notifications, admin)
+│   │       ├── service/        Business logic interfaces (+ impl/ package)
+│   │       ├── repository/     Spring Data JPA repositories
+│   │       ├── dto/             Request/response DTOs, organized into profile/ risk/ security/ verification/
+│   │       │                    notification/ admin/ sub-packages
+│   │       ├── entity/         JPA entities and enums
+│   │       ├── mapper/          Entity ↔ DTO mapping components
+│   │       ├── validator/       Custom Jakarta Validation constraints (PAN, PIN code, password strength)
+│   │       ├── risk/            Configurable risk questionnaire catalog + scoring engine
+│   │       ├── notification/    Outbound email abstraction
+│   │       ├── events/          Domain events (audit trail)
+│   │       ├── listener/        Async event listeners (audit log persistence)
+│   │       ├── config/         Security, CORS, JWT, upload, OpenAPI configuration
+│   │       ├── security/       JWT filter, user principal, user details service, request metadata
+│   │       ├── exception/      Custom exceptions + global exception handler
+│   │       └── util/           Shared constants and helpers
+│   └── web/                 Next.js App Router application
+│       └── src/
+│           ├── app/             Routes (landing, auth pages, dashboard, profile/*)
+│           ├── components/      UI primitives, layout, landing, auth, dashboard, profile
+│           ├── hooks/           React Query hooks (auth, profile, risk, security, notifications)
+│           ├── lib/             Axios client, API services, validation schemas
+│           ├── store/           Zustand auth store
+│           └── types/           Shared TypeScript types
+├── infrastructure/
+│   ├── docker-compose.yml   Local dev orchestration (web + api + postgres)
+│   ├── render.yaml           Render Blueprint for the api service
+│   └── docker/               api.Dockerfile, web.Dockerfile
 └── .github/workflows/         ci-cd.yml (build FE+BE, deploy on push to main)
 ```
 
@@ -90,14 +93,14 @@ Prerequisites: Docker Desktop, or Node.js 20+ and JDK 21 + Maven if running serv
 **Fastest path — Docker Compose:**
 
 ```bash
-docker compose up --build
+docker compose -f infrastructure/docker-compose.yml up --build
 ```
 
 This starts PostgreSQL, the backend on `http://localhost:8080`, and the frontend on `http://localhost:3000`.
 
 ## 6. Environment Variables
 
-**Frontend** (`frontend/.env.local`, see `frontend/.env.example`):
+**Frontend** (`app/web/.env.local`, see `app/web/.env.example`):
 
 | Variable | Description |
 |---|---|
@@ -107,7 +110,7 @@ GitHub Pages serves static files only, so `NEXT_PUBLIC_API_URL` cannot be read a
 `deploy` job bakes it into the build from the `NEXT_PUBLIC_API_URL` repository variable (see
 [Section 14](#14-github-pages-deployment)).
 
-**Backend** (`backend/.env`, see `backend/.env.example`):
+**Backend** (`app/api/.env`, see `app/api/.env.example`):
 
 | Variable | Description |
 |---|---|
@@ -125,15 +128,15 @@ gitignored.
 
 ## 7. Docker Setup
 
-- `backend/Dockerfile` — multi-stage Maven build → Temurin 21 JRE runtime image with an actuator health check.
-- `frontend/Dockerfile` — multi-stage Node 20 build producing a minimal Next.js production image.
-- `docker-compose.yml` — runs all three services locally. The Postgres container is for local development
+- `infrastructure/docker/api.Dockerfile` — multi-stage Maven build → Temurin 21 JRE runtime image with an actuator health check.
+- `infrastructure/docker/web.Dockerfile` — multi-stage Node 20 build producing a minimal Next.js production image.
+- `infrastructure/docker-compose.yml` — runs all three services locally. The Postgres container is for local development
   only; deployed environments use Neon.
 
 ## 8. Frontend Setup
 
 ```bash
-cd frontend
+cd app/web
 npm install
 npm run dev      # http://localhost:3000
 npm run lint
@@ -144,7 +147,7 @@ npm run build
 ## 9. Backend Setup
 
 ```bash
-cd backend
+cd app/api
 cp .env.example .env   # fill in local/Neon values, then export them
 mvn spring-boot:run
 ```
@@ -159,7 +162,7 @@ user/password `finadvisor`). Deployed environments use a Neon PostgreSQL connect
 
 ## 11. Flyway Migrations
 
-Migrations live in `backend/src/main/resources/db/migration` and run automatically on startup:
+Migrations live in `app/api/src/main/resources/db/migration` and run automatically on startup:
 
 - `V1__create_users_table.sql` — `users` table (auth + risk profile)
 - `V2__create_refresh_tokens_table.sql` — `refresh_tokens` table (FK to `users`, unique token, expiry)
@@ -177,10 +180,10 @@ manual edits.
 
 ```bash
 # Backend
-cd backend && mvn test
+cd app/api && mvn test
 
 # Frontend
-cd frontend && npm run test
+cd app/web && npm run test
 ```
 
 ## 13. GitHub Actions / CI-CD
@@ -213,7 +216,9 @@ published to GitHub Pages by the `deploy` job.
 
 ## 15. Render Deployment
 
-`render.yaml` defines the backend as a Docker web service. In the Render dashboard, set the environment
+`infrastructure/render.yaml` defines the backend as a Docker web service. In the Render dashboard, the
+Blueprint's "render.yaml path" must be set to `infrastructure/render.yaml` (Render only looks at the repo
+root by default). Set the environment
 variables `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `JWT_SECRET`, `JWT_ACCESS_TOKEN_EXPIRATION`,
 `JWT_REFRESH_TOKEN_EXPIRATION`, and `CORS_ALLOWED_ORIGINS` (the GitHub Pages site URL). Render's health check
 uses the Spring Boot Actuator `/actuator/health` endpoint.
