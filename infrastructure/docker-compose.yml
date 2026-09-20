@@ -18,7 +18,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ../app/api
+      dockerfile: ../../infrastructure/docker/api.Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -37,7 +38,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ../app/web
+      dockerfile: ../../infrastructure/docker/web.Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8080
     restart: unless-stopped
