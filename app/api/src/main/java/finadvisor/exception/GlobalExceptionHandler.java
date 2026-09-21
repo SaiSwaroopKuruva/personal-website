@@ -1,6 +1,10 @@
 package finadvisor.exception;
 
 import finadvisor.dto.ErrorResponse;
+import finadvisor.mutualfund.exception.DuplicateFavoriteException;
+import finadvisor.mutualfund.exception.InvalidCalculatorInputException;
+import finadvisor.mutualfund.exception.InvalidComparisonRequestException;
+import finadvisor.mutualfund.exception.MutualFundNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
