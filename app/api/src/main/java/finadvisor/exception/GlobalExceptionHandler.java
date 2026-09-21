@@ -108,6 +108,26 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(MutualFundNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMutualFundNotFound(MutualFundNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicateFavoriteException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateFavorite(DuplicateFavoriteException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidComparisonRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidComparisonRequest(InvalidComparisonRequestException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCalculatorInputException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCalculatorInput(InvalidCalculatorInputException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthentication(HttpServletRequest request) {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication is required to access this resource", request);

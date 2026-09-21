@@ -4,6 +4,7 @@ import finadvisor.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -42,6 +43,19 @@ public class SecurityConfig {
             "/actuator/health"
     };
 
+    // Mutual fund discovery/details/NAV/returns/holdings/managers/filters/compare are public (Part 33);
+    // favorites and admin sync are NOT listed here - they fall through to .anyRequest().authenticated().
+    private static final String[] MUTUAL_FUND_PUBLIC_GET_ENDPOINTS = {
+            "/api/mutual-funds",
+            "/api/mutual-funds/filters",
+            "/api/mutual-funds/compare",
+            "/api/mutual-funds/*",
+            "/api/mutual-funds/*/nav-history",
+            "/api/mutual-funds/*/returns",
+            "/api/mutual-funds/*/holdings",
+            "/api/mutual-funds/*/managers"
+    };
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
@@ -73,7 +87,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/mutual-funds/favorites").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/mutual-funds/*/favorite").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/mutual-funds/*/favorite").authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, MUTUAL_FUND_PUBLIC_GET_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/calculators/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
