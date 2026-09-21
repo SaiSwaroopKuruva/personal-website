@@ -67,17 +67,19 @@ hosting), Render (backend hosting), Neon (managed PostgreSQL).
 │   │       ├── notification/    Outbound email abstraction
 │   │       ├── events/          Domain events (audit trail)
 │   │       ├── listener/        Async event listeners (audit log persistence)
-│   │       ├── config/         Security, CORS, JWT, upload, OpenAPI configuration
+│   │       ├── mutualfund/     Phase 3 feature package - self-contained MVC slice (see below)
+│   │       ├── config/         Security, CORS, JWT, upload, OpenAPI configuration (cross-cutting only)
 │   │       ├── security/       JWT filter, user principal, user details service, request metadata
 │   │       ├── exception/      Custom exceptions + global exception handler
 │   │       └── util/           Shared constants and helpers
+│   │   └── src/main/resources/db/seed/  Dev-only demo data migrations (mutual funds), NOT run in production
 │   └── web/                 Next.js App Router application
 │       └── src/
-│           ├── app/             Routes (landing, auth pages, dashboard, profile/*)
-│           ├── components/      UI primitives, layout, landing, auth, dashboard, profile
-│           ├── hooks/           React Query hooks (auth, profile, risk, security, notifications)
+│           ├── app/             Routes (landing, auth pages, dashboard, profile/*, mutual-funds/*, calculators/*)
+│           ├── components/      UI primitives, layout, landing, auth, dashboard, profile, mutual-funds, calculators
+│           ├── hooks/           React Query hooks (auth, profile, risk, security, notifications, mutual funds, calculators)
 │           ├── lib/             Axios client, API services, validation schemas
-│           ├── store/           Zustand auth store
+│           ├── store/           Zustand stores (auth, mutual fund comparison selection)
 │           └── types/           Shared TypeScript types
 ├── infrastructure/
 │   ├── docker-compose.yml   Local dev orchestration (web + api + postgres)
@@ -85,6 +87,27 @@ hosting), Render (backend hosting), Neon (managed PostgreSQL).
 │   └── docker/               api.Dockerfile, web.Dockerfile
 └── .github/workflows/         ci-cd.yml (build FE+BE, deploy on push to main)
 ```
+
+`finadvisor.mutualfund` is organized as its own self-contained MVC slice (feature-based, not by technical
+layer) so all Phase 3 code is easy to locate in one place:
+
+```
+finadvisor/mutualfund/
+├── controller/    MutualFundController, MutualFundFavoriteController, CalculatorController, AdminMutualFundSyncController
+├── service/       Business logic interfaces (+ impl/)
+├── repository/    Spring Data JPA repositories + MutualFundSpecifications
+├── dto/           Request/response DTOs (+ calculator/ sub-package)
+├── entity/        JPA entities and enums
+├── mapper/        Entity ↔ DTO mapping
+├── provider/       Market-data provider abstraction (+ demo/ dev provider)
+├── scheduler/      Scheduled data-sync job
+├── config/         Provider/calculator properties, cache config
+└── exception/      Feature-specific exceptions
+```
+
+Everything outside `mutualfund/` (`controller/`, `service/`, `repository/`, `dto/`, `entity/`, `config/`,
+`exception/`, etc. at the `finadvisor` root) is cross-cutting/shared code from Phase 1/2 (auth, profile,
+risk, security, notifications) and common infrastructure (`SecurityConfig`, `GlobalExceptionHandler`, JWT).
 
 ## 5. Local Development Setup
 
@@ -172,6 +195,11 @@ Migrations live in `app/api/src/main/resources/db/migration` and run automatical
   - Adds `device_id` to `refresh_tokens` (links a session to the device it was issued to).
   - New tables: `user_addresses`, `user_devices`, `email_verification_tokens`, `password_reset_tokens`,
     `password_history`, `risk_assessment_results`, `audit_logs`.
+- `V4__mutual_fund_platform.sql` — Phase 3 schema (see [Section 22](#22-phase-3-mutual-fund-platform)):
+  `mutual_fund_amcs`, `mutual_funds`, `mutual_fund_nav_history`, `mutual_fund_holdings`,
+  `mutual_fund_managers`, `mutual_fund_returns`, `user_mutual_fund_favorites`, `mutual_fund_data_sync`.
+- `db/seed/V9001__seed_demo_mutual_fund_data.sql` — dev-only demo AMC/fund/NAV/returns/holdings/manager
+  data, only applied when the `dev` Spring profile is active (never in production).
 
 Hibernate's `ddl-auto` is set to `validate` — schema changes must go through new Flyway migrations, never
 manual edits.
@@ -269,12 +297,11 @@ Interactive API docs are served by springdoc-openapi:
 - Docker Compose for local development; Dockerfiles for both apps.
 - Separate GitHub Actions workflows for frontend and backend.
 
-## 20. Phase 2 TODOs
+## 20. Phase 2 TODOs (superseded)
 
-- Real portfolio, net worth, and market data integrations (replacing dashboard placeholders).
-- Role-based authorization beyond `USER`/`ADMIN` (e.g. advisor/compliance roles).
-- Refresh token hashing at rest.
-- Expanded automated test coverage (integration tests with Testcontainers, E2E tests).
+Historical note: this section originally listed Phase 1 → Phase 2 TODOs. All of them were addressed in
+Phase 2 except test coverage expansion, which (along with new Phase 3 follow-ups) now lives in
+[Section 23, Phase 4 TODOs](#23-phase-4-todos).
 
 ## 21. Phase 2: User Management, Security & Risk Profiling
 
@@ -397,6 +424,136 @@ The public `/verify-email` and new `/reset-password` pages now call the real ver
   filenames (no user-controlled path segments) to prevent path traversal and content-type abuse.
 - All new endpoints are behind JWT authentication except the intentionally public token-based flows
   (`/api/email/verify`, `/api/password/forgot`, `/api/password/reset`) and static `/uploads/**` assets.
+
+## 22. Phase 3: Mutual Fund Platform
+
+Phase 3 adds a mutual fund discovery, analysis and calculator platform on top of the Phase 1/2
+foundation. It is **discovery/educational only**: no purchases, redemptions, broker integrations, or bank
+connections are implemented, and no personalized investment recommendations are made.
+
+### 22.1 Database Schema
+
+`V4__mutual_fund_platform.sql` adds:
+
+- `mutual_fund_amcs` — asset management companies.
+- `mutual_funds` — scheme master data (unique `scheme_code`/`isin`, category/sub-category, plan/option
+  type, risk level, expense ratio, AUM, NAV, minimums, etc). Indexed on `amc_id`, `category`,
+  `sub_category`, `risk_level`, `nav_date`, `scheme_name`, `status`.
+- `mutual_fund_nav_history` — one row per fund per NAV date (unique `mutual_fund_id`+`nav_date`,
+  composite index for efficient chart range queries).
+- `mutual_fund_holdings` — portfolio holdings snapshots (security, sector, asset type, weight, market
+  value, as-of date).
+- `mutual_fund_managers`, `mutual_fund_returns` (unique per fund+period; `annualized` flag distinguishes
+  CAGR from absolute returns), `user_mutual_fund_favorites` (unique per user+fund), and
+  `mutual_fund_data_sync` (provider sync run log).
+
+`db/seed/V9001__seed_demo_mutual_fund_data.sql` seeds 10 **entirely fictional** demo funds (AMCs, NAV
+history, returns, holdings, managers) for local development only — see [22.7](#227-seed-data--demo-provider).
+
+### 22.2 Provider Abstraction
+
+`finadvisor.mutualfund.provider.MutualFundDataProvider` is the only interface the platform depends on for
+external market data (`searchFunds`, `getFundDetails`, `getCurrentNav`, `getHistoricalNav`, `getHoldings`,
+`getFundManagers`, `getFundReturns`, `syncFunds`). Provider-specific types never reach controllers —
+`ProviderResponse<T>`/`ProviderFundData`/etc. are internal to `finadvisor.mutualfund.provider` and are
+mapped into platform entities by `MutualFundDataSyncService`. `ProviderCallExecutor` applies exponential-backoff
+retry, but only for calls that throw a `ProviderException` marked `retryable` (never for non-retryable
+4xx-style failures). A provider outage never crashes the app: sync failures are caught, logged, and
+recorded in `mutual_fund_data_sync` with `FAILED`/`PARTIAL_FAILURE` status.
+
+To add a real provider (AMFI, MFApi.in, a paid vendor, etc.): implement `MutualFundDataProvider`, annotate
+it `@ConditionalOnProperty(prefix = "mutualfund.provider", name = "name", havingValue = "<your-name>")`,
+and set `MUTUAL_FUND_PROVIDER_NAME` accordingly — no other code changes required.
+
+### 22.3 Data Synchronization
+
+`MutualFundDataSyncService` upserts funds/AMCs, NAV, holdings, returns and managers from the active
+provider, recording a `mutual_fund_data_sync` row per run. `MutualFundSyncScheduler` runs it on a cron
+schedule (`mutualfund.sync.cron`, disabled by default via Spring's `-` "never fire" marker) and only when
+`mutualfund.provider.enabled=true`. `AdminMutualFundSyncController` (`/api/admin/mutual-funds/sync*`,
+`ROLE_ADMIN`) allows triggering syncs manually.
+
+### 22.4 Caching
+
+`CacheConfig` enables Spring's cache abstraction with an in-memory `ConcurrentMapCacheManager` (filter
+metadata, fund details, popular funds, current NAV caches). Because it's the standard `@Cacheable`
+abstraction, swapping in Redis later is a one-bean change (`RedisCacheManager`) with no service code
+changes — Redis has not been introduced into this project yet, so `REDIS_URL` in `.env.example` is a
+placeholder for that future work.
+
+### 22.5 API Endpoints
+
+Public (no auth required): fund discovery, details, history, returns, holdings, managers, filters,
+comparison, and all three calculators.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/mutual-funds` | Paginated search/filter/sort |
+| GET | `/api/mutual-funds/filters` | Filter metadata (cached) |
+| GET | `/api/mutual-funds/compare?schemes=A,B` | Compare 2–4 schemes |
+| GET | `/api/mutual-funds/{schemeCode}` | Full fund details |
+| GET | `/api/mutual-funds/{schemeCode}/nav-history` | NAV history (`from`/`to`/`interval`) |
+| GET | `/api/mutual-funds/{schemeCode}/returns` | Trailing returns (absolute vs. annualized) |
+| GET | `/api/mutual-funds/{schemeCode}/holdings` | Paginated holdings (`sector`/`assetType`/`asOfDate`) |
+| GET | `/api/mutual-funds/{schemeCode}/managers` | Fund manager info |
+| POST/DELETE | `/api/mutual-funds/{schemeCode}/favorite` | Add/remove favorite (auth required) |
+| GET | `/api/mutual-funds/favorites` | List favorites (auth required) |
+| POST | `/api/calculators/sip` \| `/lumpsum` \| `/swp` | Investment calculators |
+| POST | `/api/admin/mutual-funds/sync*` | Trigger provider sync (`ROLE_ADMIN`) |
+
+### 22.6 Calculators
+
+All calculations use `BigDecimal` exclusively (never `double`/`float`). SIP uses the standard annuity-due
+monthly-compounding formula; lumpsum uses annual compounding; SWP is simulated month-by-month (growth then
+capped withdrawal) so early corpus exhaustion is detected rather than assumed away. All three validate
+inputs against configurable upper bounds (`mutualfund.calculator.*`) and every response is labeled an
+estimate with a disclaimer — never a guarantee.
+
+### 22.7 Seed Data & Demo Provider
+
+Both the SQL seed migration and `DemoMutualFundDataProvider` (`finadvisor.mutualfund.provider.demo`,
+active by default via `mutualfund.provider.name=demo`) use the same 10 clearly fictional schemes/AMCs so a
+manually-triggered sync updates the same seeded rows. NAV history/returns are generated by a deterministic
+drift+oscillation formula — never real market data — and are only loaded when the `dev` Spring profile is
+active (`application-dev.properties` adds `classpath:db/seed` to `spring.flyway.locations`). Run locally
+with `SPRING_PROFILES_ACTIVE=dev`.
+
+### 22.8 Frontend
+
+New routes: `/mutual-funds` (explorer: search, filters sidebar/mobile drawer, sort, pagination),
+`/mutual-funds/[schemeCode]` (details, NAV chart, returns, holdings, managers, calculator links),
+`/mutual-funds/compare` (up to 4 funds), `/mutual-funds/favorites` (auth-gated), and
+`/calculators/sip|lumpsum|swp`. No charting library was added (consistent with the existing custom
+`allocation-chart.tsx` pattern) — `NavChart` and `AmountBarChart` are lightweight custom SVG/CSS
+components. All monetary values use Indian locale formatting (`formatInr`/`formatCrores`/`formatNav` in
+`lib/utils.ts`, e.g. `₹10,00,000`). A reusable `Disclaimer` component appears on every page that shows
+returns, calculator output, or comparisons.
+
+### 22.9 Architecture Decisions / Known Limitations
+
+- Sync orchestration (`syncFunds`/`syncNav`/etc.) lives on `MutualFundDataSyncService`, not on
+  `MutualFundDataProvider` itself, so providers stay pure data sources with no DB/repository knowledge
+  (SRP) — a deliberate deviation from listing those methods directly on the provider interface.
+- No Testcontainers/H2 integration tests were added in this phase (the project has none yet for Phase
+  1/2 either) — backend tests are Mockito-based unit tests only. Repository/controller integration tests
+  and E2E tests are recommended for Phase 4.
+- Filter/search state in the explorer is component-local (not URL query params), so filtered views aren't
+  currently shareable via URL — a good Phase 4 improvement.
+- "Popular/trending funds" (Part 31) was not exposed as a separate endpoint in this phase; the search API's
+  default sort and filters cover fund discovery. A configurable popularity ranking is recommended for Phase 4.
+
+## 23. Phase 4 TODOs
+
+- Real mutual fund market-data provider integration (behind the existing `MutualFundDataProvider`
+  abstraction).
+- Actual purchase/redemption flows, broker/RTA integration, and bank account linking (explicitly out of
+  scope through Phase 3).
+- Redis-backed caching (swap `CacheConfig`'s `CacheManager` bean).
+- URL-shareable mutual fund explorer filters; Testcontainers-based integration tests; E2E test suite.
+- Real portfolio, net worth, and market data integrations (replacing dashboard placeholders).
+- Role-based authorization beyond `USER`/`ADMIN` (e.g. advisor/compliance roles).
+- Refresh token hashing at rest.
+
 
 ### 21.11 Known Limitations
 

@@ -1,6 +1,10 @@
 package finadvisor.exception;
 
 import finadvisor.dto.ErrorResponse;
+import finadvisor.mutualfund.exception.DuplicateFavoriteException;
+import finadvisor.mutualfund.exception.InvalidCalculatorInputException;
+import finadvisor.mutualfund.exception.InvalidComparisonRequestException;
+import finadvisor.mutualfund.exception.MutualFundNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -105,6 +109,26 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidRiskAnswerException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRiskAnswer(InvalidRiskAnswerException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(MutualFundNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMutualFundNotFound(MutualFundNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicateFavoriteException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateFavorite(DuplicateFavoriteException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidComparisonRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidComparisonRequest(InvalidComparisonRequestException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCalculatorInputException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCalculatorInput(InvalidCalculatorInputException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
