@@ -18,6 +18,13 @@ export const ROUTES = {
   profileNotifications: "/profile/notifications",
   profileChangePassword: "/profile/change-password",
   profileVerifyEmail: "/profile/verify-email",
+  mutualFunds: "/mutual-funds",
+  mutualFundCompare: "/mutual-funds/compare",
+  mutualFundFavorites: "/mutual-funds/favorites",
+  mutualFundDetails: (schemeCode: string) => `/mutual-funds/${schemeCode}`,
+  calculatorSip: "/calculators/sip",
+  calculatorLumpsum: "/calculators/lumpsum",
+  calculatorSwp: "/calculators/swp",
 } as const;
 
 export const AUTH_STORAGE_KEY = "fin-advisor-auth";
