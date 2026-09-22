@@ -11,7 +11,7 @@ import finadvisor.stock.entity.StockSyncStatus;
 import finadvisor.stock.entity.StockSyncType;
 import finadvisor.stock.dto.StockSyncResultResponse;
 import finadvisor.stock.provider.MarketCandle;
-import finadvisor.stock.provider.ProviderCallExecutor;
+import finadvisor.stock.provider.StockProviderCallExecutor;
 import finadvisor.stock.provider.ProviderResponse;
 import finadvisor.stock.provider.ProviderStockDetails;
 import finadvisor.stock.provider.StockMarketDataProvider;
@@ -37,13 +37,13 @@ public class StockDataSyncServiceImpl implements StockDataSyncService {
     private static final Logger log = Logger.getLogger(StockDataSyncServiceImpl.class.getName());
 
     private final Optional<StockMarketDataProvider> provider;
-    private final ProviderCallExecutor providerCallExecutor;
+    private final StockProviderCallExecutor providerCallExecutor;
     private final StockExchangeRepository exchangeRepository;
     private final StockRepository stockRepository;
     private final StockPriceRepository priceRepository;
     private final StockDataSyncRepository syncLogRepository;
 
-    public StockDataSyncServiceImpl(Optional<StockMarketDataProvider> provider, ProviderCallExecutor providerCallExecutor,
+    public StockDataSyncServiceImpl(Optional<StockMarketDataProvider> provider, StockProviderCallExecutor providerCallExecutor,
                                      StockExchangeRepository exchangeRepository, StockRepository stockRepository,
                                      StockPriceRepository priceRepository, StockDataSyncRepository syncLogRepository) {
         this.provider = provider;
