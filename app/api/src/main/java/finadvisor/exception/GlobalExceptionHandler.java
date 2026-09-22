@@ -1,10 +1,13 @@
 package finadvisor.exception;
 
 import finadvisor.dto.ErrorResponse;
+import finadvisor.marketdata.FinancialDataProviderException;
 import finadvisor.mutualfund.exception.DuplicateFavoriteException;
 import finadvisor.mutualfund.exception.InvalidCalculatorInputException;
 import finadvisor.mutualfund.exception.InvalidComparisonRequestException;
 import finadvisor.mutualfund.exception.MutualFundNotFoundException;
+import finadvisor.stock.exception.StockNotFoundException;
+import finadvisor.stock.provider.StockProviderException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -132,6 +135,23 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(StockNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleStockNotFound(StockNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(StockProviderException.class)
+    public ResponseEntity<ErrorResponse> handleStockProviderException(StockProviderException ex, HttpServletRequest request) {
+        log.log(Level.WARNING, "Stock provider error: " + ex.getCategory(), ex);
+        return buildResponse(mapProviderStatus(ex.getCategory()), "The stock data provider is currently unavailable. Please try again shortly.", request);
+    }
+
+    @ExceptionHandler(FinancialDataProviderException.class)
+    public ResponseEntity<ErrorResponse> handleFinancialDataProviderException(FinancialDataProviderException ex, HttpServletRequest request) {
+        log.log(Level.WARNING, "Financial data provider error [" + ex.getProvider() + "]: " + ex.getCategory(), ex);
+        return buildResponse(mapProviderStatus(ex.getCategory()), "The financial data provider is currently unavailable. Please try again shortly.", request);
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthentication(HttpServletRequest request) {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication is required to access this resource", request);
@@ -151,5 +171,16 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, HttpServletRequest request) {
         ErrorResponse body = ErrorResponse.of(status.value(), status.getReasonPhrase(), message, request.getRequestURI());
         return ResponseEntity.status(status).body(body);
+    }
+
+    private HttpStatus mapProviderStatus(finadvisor.marketdata.ErrorCategory category) {
+        return switch (category) {
+            case AUTHENTICATION_ERROR -> HttpStatus.UNAUTHORIZED;
+            case AUTHORIZATION_ERROR -> HttpStatus.FORBIDDEN;
+            case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
+            case INVALID_REQUEST, DATA_VALIDATION_ERROR -> HttpStatus.BAD_REQUEST;
+            case UNSUPPORTED_OPERATION -> HttpStatus.NOT_IMPLEMENTED;
+            case TIMEOUT, PROVIDER_UNAVAILABLE, INVALID_PROVIDER_RESPONSE, UNKNOWN -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
     }
 }

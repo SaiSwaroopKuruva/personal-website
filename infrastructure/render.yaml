@@ -20,3 +20,18 @@ services:
         value: "604800000"
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      # Phase 3.5 - real financial data providers (see docs/financial-data-providers.md)
+      - key: MUTUAL_FUND_PROVIDER_NAME
+        value: amfi
+      - key: MUTUAL_FUND_PROVIDER_ENABLED
+        value: "true"
+      - key: AMFI_BASE_URL
+        sync: false
+      - key: STOCK_DATA_PROVIDER
+        value: UPSTOX
+      - key: STOCK_PROVIDER_ENABLED
+        value: "true"
+      - key: UPSTOX_API_BASE_URL
+        sync: false
+      - key: UPSTOX_ANALYTICS_TOKEN
+        sync: false

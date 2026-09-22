@@ -67,7 +67,11 @@ hosting), Render (backend hosting), Neon (managed PostgreSQL).
 │   │       ├── notification/    Outbound email abstraction
 │   │       ├── events/          Domain events (audit trail)
 │   │       ├── listener/        Async event listeners (audit log persistence)
-│   │       ├── mutualfund/     Phase 3 feature package - self-contained MVC slice (see below)
+│   │       ├── mutualfund/     Phase 3 feature package - self-contained MVC slice (see below); now also
+│   │       │                    hosts the Phase 3.5 AmfiMutualFundDataProvider under provider/amfi/
+│   │       ├── stock/          Phase 3.5 feature package - stocks (mirrors mutualfund/ structure; see below)
+│   │       ├── marketdata/     Phase 3.5 shared provider model (FinancialDataProviderException, DataType,
+│   │       │                    DataFreshness, ProviderHealthTracker, ProviderStatusController)
 │   │       ├── config/         Security, CORS, JWT, upload, OpenAPI configuration (cross-cutting only)
 │   │       ├── security/       JWT filter, user principal, user details service, request metadata
 │   │       ├── exception/      Custom exceptions + global exception handler
@@ -75,9 +79,9 @@ hosting), Render (backend hosting), Neon (managed PostgreSQL).
 │   │   └── src/main/resources/db/seed/  Dev-only demo data migrations (mutual funds), NOT run in production
 │   └── web/                 Next.js App Router application
 │       └── src/
-│           ├── app/             Routes (landing, auth pages, dashboard, profile/*, mutual-funds/*, calculators/*)
-│           ├── components/      UI primitives, layout, landing, auth, dashboard, profile, mutual-funds, calculators
-│           ├── hooks/           React Query hooks (auth, profile, risk, security, notifications, mutual funds, calculators)
+│           ├── app/             Routes (landing, auth pages, dashboard, profile/*, mutual-funds/*, stocks/*, market/*, calculators/*)
+│           ├── components/      UI primitives, layout, landing, auth, dashboard, profile, mutual-funds, stocks, calculators
+│           ├── hooks/           React Query hooks (auth, profile, risk, security, notifications, mutual funds, stocks, market, calculators)
 │           ├── lib/             Axios client, API services, validation schemas
 │           ├── store/           Zustand stores (auth, mutual fund comparison selection)
 │           └── types/           Shared TypeScript types
@@ -108,6 +112,11 @@ finadvisor/mutualfund/
 Everything outside `mutualfund/` (`controller/`, `service/`, `repository/`, `dto/`, `entity/`, `config/`,
 `exception/`, etc. at the `finadvisor` root) is cross-cutting/shared code from Phase 1/2 (auth, profile,
 risk, security, notifications) and common infrastructure (`SecurityConfig`, `GlobalExceptionHandler`, JWT).
+
+`finadvisor.stock` (Phase 3.5) follows the identical self-contained slice pattern - `provider/` (interface +
+`upstox/` implementation), `entity/`/`repository/`, `service/`(+`impl/`), `controller/`, `scheduler/`,
+`config/`, `dto/`, `exception/` - see [Section 24](#24-phase-35-real-financial-data-integration) and
+[docs/financial-data-providers.md](docs/financial-data-providers.md) for full detail.
 
 ## 5. Local Development Setup
 
@@ -145,6 +154,11 @@ GitHub Pages serves static files only, so `NEXT_PUBLIC_API_URL` cannot be read a
 | `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed frontend origins |
 | `UPLOAD_DIR` | Local directory for uploaded profile photos (default `uploads`) |
 | `UPLOAD_MAX_FILE_SIZE_BYTES` | Max profile photo size in bytes (default `2097152` = 2MB) |
+
+Phase 3.5 adds real financial-data provider variables (`MUTUAL_FUND_PROVIDER_NAME=amfi`,
+`STOCK_DATA_PROVIDER=UPSTOX`, `UPSTOX_ANALYTICS_TOKEN`, `AMFI_BASE_URL`, etc.) - see
+[docs/financial-data-providers.md](docs/financial-data-providers.md) for the full list and
+[Section 24](#24-phase-35-real-financial-data-integration) for an overview.
 
 Never commit real values for these — `.env`, `.env.local`, `.env.*.local`, and `application-local.*` are
 gitignored.
@@ -198,6 +212,8 @@ Migrations live in `app/api/src/main/resources/db/migration` and run automatical
 - `V4__mutual_fund_platform.sql` — Phase 3 schema (see [Section 22](#22-phase-3-mutual-fund-platform)):
   `mutual_fund_amcs`, `mutual_funds`, `mutual_fund_nav_history`, `mutual_fund_holdings`,
   `mutual_fund_managers`, `mutual_fund_returns`, `user_mutual_fund_favorites`, `mutual_fund_data_sync`.
+- `V5__stock_market_platform.sql` — Phase 3.5 schema (see [Section 24](#24-phase-35-real-financial-data-integration)):
+  `stock_exchanges`, `stocks`, `stock_prices`, `stock_data_sync`.
 - `db/seed/V9001__seed_demo_mutual_fund_data.sql` — dev-only demo AMC/fund/NAV/returns/holdings/manager
   data, only applied when the `dev` Spring profile is active (never in production).
 
@@ -545,8 +561,8 @@ returns, calculator output, or comparisons.
 
 ## 23. Phase 4 TODOs
 
-- Real mutual fund market-data provider integration (behind the existing `MutualFundDataProvider`
-  abstraction).
+- ~~Real mutual fund market-data provider integration~~ — done in Phase 3.5 (`AmfiMutualFundDataProvider`,
+  see [Section 24](#24-phase-35-real-financial-data-integration)).
 - Actual purchase/redemption flows, broker/RTA integration, and bank account linking (explicitly out of
   scope through Phase 3).
 - Redis-backed caching (swap `CacheConfig`'s `CacheManager` bean).
@@ -572,4 +588,66 @@ returns, calculator output, or comparisons.
 - Real net worth, holdings, and transaction history (replacing dashboard placeholders).
 - KYC document upload/verification workflow (the `kyc_status` field is modeled but not yet actionable).
 - Payment/bank account linking for investments and withdrawals.
+
+## 24. Phase 3.5: Real Financial Data Integration
+
+Phase 3.5 integrates real stock market data (Upstox) and real mutual fund NAV data (AMFI) behind the
+existing/new provider abstractions, without rewriting any Phase 1–4 functionality. Full details, exact
+endpoints used, provider limitations, and setup instructions live in
+**[docs/financial-data-providers.md](docs/financial-data-providers.md)** — this section is a summary.
+
+### 24.1 What changed
+
+- **Mutual funds:** added `AmfiMutualFundDataProvider` (`finadvisor.mutualfund.provider.amfi`) implementing
+  the existing, unchanged `MutualFundDataProvider` interface. Activate with `MUTUAL_FUND_PROVIDER_NAME=amfi`.
+  No controller/service/entity changes were needed.
+- **Stocks (new):** added a self-contained `finadvisor.stock` feature package mirroring the Phase 3
+  `mutualfund` package structure - `provider` (interface + `UpstoxStockMarketDataProvider`), `entity`/`repository`
+  (`stock_exchanges`, `stocks`, `stock_prices`, `stock_data_sync` via `V5__stock_market_platform.sql`),
+  `service`/`service.impl`, `controller` (`StockController`, `MarketController`, `AdminStockSyncController`),
+  `scheduler`, `config`, `dto`, `exception`. Activate with `STOCK_DATA_PROVIDER=UPSTOX` +
+  `UPSTOX_ANALYTICS_TOKEN`.
+- **Shared:** new `finadvisor.marketdata` package with `FinancialDataProviderException`/`ErrorCategory`,
+  `DataType`/`DataFreshness` enums, and `ProviderHealthTracker` backing `GET /api/data-providers/status`.
+
+### 24.2 API Endpoints (new)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/stocks?query=` | Search NSE stocks |
+| GET | `/api/stocks/{symbol}` | Reference details |
+| GET | `/api/stocks/{symbol}/prices` | Current quote (source/dataType/freshness always present) |
+| GET | `/api/stocks/{symbol}/ohlc` | Historical/intraday OHLC (`interval=EOD\|INTRADAY`) |
+| GET | `/api/stocks/{symbol}/news` | Recent news (Upstox News API) |
+| GET | `/api/stocks/{symbol}/metrics`, `/financials`, `/dividends`, `/corporate-actions` | `501 Not Implemented` - documented limitation, see docs |
+| GET | `/api/market/indices` \| `/gainers` \| `/losers` \| `/most-active` \| `/status` | Market-wide data |
+| GET | `/api/data-providers/status` | Public, credential-free provider health |
+| POST | `/api/admin/stocks/sync*` | Trigger stock sync (`ROLE_ADMIN`) |
+
+### 24.3 Frontend
+
+New routes: `/stocks` (search), `/stocks/details?symbol=...` (quote + news, query param for static-export
+compatibility, same pattern as mutual fund details), `/market` (indices/gainers/losers/most-active/status).
+New `FreshnessBadge`/`DataSourceNote`/`ProviderStatusBanner` components make data source and freshness
+explicit rather than implying everything is live (Part 20/38).
+
+### 24.4 Known limitations (see docs for full detail)
+
+- No Upstox gainers/losers/most-active screener endpoint exists - these are computed locally from real
+  quotes across a bounded, configurable tracked-symbol universe.
+- Upstox Fundamentals (financial statements, key ratios, dividends, corporate actions) integration is
+  deferred - endpoints exist and return `501` rather than guessed data.
+- WebSocket real-time streaming is not implemented (Upstox V3 feed uses Protobuf) - the provider interface
+  has ready-to-implement default methods for it.
+- AMFI has no per-scheme historical NAV REST API - historical NAV accumulates via the existing daily sync.
+
+## 25. Phase 5 TODOs
+
+- Implement Upstox Fundamentals API integration for `/metrics`, `/financials`, `/dividends`, `/corporate-actions`.
+- Implement Upstox V3 WebSocket market-data streaming (requires Protobuf message decoding).
+- Expand the tracked stock universe (or ingest the full NSE/BSE instrument JSON file) for broader
+  search/screener coverage.
+- Redis-backed caching (swap `CacheConfig`'s `CacheManager` bean) - now doubly useful with two live providers.
+- Testcontainers-based integration tests for the Upstox/AMFI provider adapters against recorded fixtures.
+
 

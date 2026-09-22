@@ -24,6 +24,12 @@ export function DashboardNav() {
           <Link href={ROUTES.mutualFunds} className="transition-colors hover:text-foreground">
             Mutual Funds
           </Link>
+          <Link href={ROUTES.stocks} className="transition-colors hover:text-foreground">
+            Stocks
+          </Link>
+          <Link href={ROUTES.market} className="transition-colors hover:text-foreground">
+            Market
+          </Link>
           <Link href={ROUTES.mutualFundFavorites} className="transition-colors hover:text-foreground">
             Favorites
           </Link>
