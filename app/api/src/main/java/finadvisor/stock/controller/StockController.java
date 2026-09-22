@@ -65,25 +65,25 @@ public class StockController {
 
     @GetMapping("/{symbol}/metrics")
     @Operation(summary = "Financial metrics (key ratios)", description = "Not implemented in this phase - requires the Upstox Fundamentals Key Ratios API (see docs/financial-data-providers.md).")
-    public ResponseEntity<StockDetailsResponse> getMetrics(@PathVariable @Pattern(regexp = SYMBOL_PATTERN) String symbol) {
+    public ResponseEntity<StockDetailsResponse> getMetrics() {
         return notImplemented();
     }
 
     @GetMapping("/{symbol}/financials")
     @Operation(summary = "Financial statements", description = "Not implemented in this phase - requires the Upstox Fundamentals balance sheet/income statement/cash flow APIs (see docs/financial-data-providers.md).")
-    public ResponseEntity<StockDetailsResponse> getFinancials(@PathVariable @Pattern(regexp = SYMBOL_PATTERN) String symbol) {
+    public ResponseEntity<StockDetailsResponse> getFinancials() {
         return notImplemented();
     }
 
     @GetMapping("/{symbol}/dividends")
     @Operation(summary = "Dividend history", description = "Not implemented in this phase - requires the Upstox Fundamentals Corporate Actions API (see docs/financial-data-providers.md).")
-    public ResponseEntity<StockDetailsResponse> getDividends(@PathVariable @Pattern(regexp = SYMBOL_PATTERN) String symbol) {
+    public ResponseEntity<StockDetailsResponse> getDividends() {
         return notImplemented();
     }
 
     @GetMapping("/{symbol}/corporate-actions")
     @Operation(summary = "Corporate actions (splits, bonuses, rights)", description = "Not implemented in this phase - requires the Upstox Fundamentals Corporate Actions API (see docs/financial-data-providers.md).")
-    public ResponseEntity<StockDetailsResponse> getCorporateActions(@PathVariable @Pattern(regexp = SYMBOL_PATTERN) String symbol) {
+    public ResponseEntity<StockDetailsResponse> getCorporateActions() {
         return notImplemented();
     }
 
