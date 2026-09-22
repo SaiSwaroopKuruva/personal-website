@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Heart, Scale, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,9 @@ import { cn, formatCrores, formatDate, formatNav } from "@/lib/utils";
 
 const NAV_RANGES = ["1M", "3M", "6M", "1Y", "3Y", "5Y", "MAX"];
 
-export function MutualFundDetailsClient({ schemeCode }: { schemeCode: string }) {
+// Read via a query param (not a dynamic path segment) so this page works under static export (GitHub Pages).
+export function MutualFundDetailsClient() {
+  const schemeCode = useSearchParams().get("schemeCode") ?? "";
   const [range, setRange] = useState("1Y");
 
   const { data: fund, isLoading, isError, refetch } = useMutualFundDetails(schemeCode);
