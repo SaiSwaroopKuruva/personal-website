@@ -521,11 +521,12 @@ with `SPRING_PROFILES_ACTIVE=dev`.
 ### 22.8 Frontend
 
 New routes: `/mutual-funds` (explorer: search, filters sidebar/mobile drawer, sort, pagination),
-`/mutual-funds/[schemeCode]` (details, NAV chart, returns, holdings, managers, calculator links),
-`/mutual-funds/compare` (up to 4 funds), `/mutual-funds/favorites` (auth-gated), and
-`/calculators/sip|lumpsum|swp`. No charting library was added (consistent with the existing custom
-`allocation-chart.tsx` pattern) — `NavChart` and `AmountBarChart` are lightweight custom SVG/CSS
-components. All monetary values use Indian locale formatting (`formatInr`/`formatCrores`/`formatNav` in
+`/mutual-funds/details?schemeCode=...` (details, NAV chart, returns, holdings, managers, calculator
+links — a query param rather than a dynamic path segment, since GitHub Pages static export cannot
+pre-render arbitrary scheme codes), `/mutual-funds/compare` (up to 4 funds), `/mutual-funds/favorites`
+(auth-gated), and `/calculators/sip|lumpsum|swp`. No charting library was added (consistent with the
+existing custom `allocation-chart.tsx` pattern) — `NavChart` and `AmountBarChart` are lightweight custom
+SVG/CSS components. All monetary values use Indian locale formatting (`formatInr`/`formatCrores`/`formatNav` in
 `lib/utils.ts`, e.g. `₹10,00,000`). A reusable `Disclaimer` component appears on every page that shows
 returns, calculator output, or comparisons.
 
