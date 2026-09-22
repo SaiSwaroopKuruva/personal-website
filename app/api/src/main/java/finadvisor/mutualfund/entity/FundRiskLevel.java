@@ -7,5 +7,7 @@ public enum FundRiskLevel {
     MODERATE,
     MODERATELY_HIGH,
     HIGH,
-    VERY_HIGH
+    VERY_HIGH,
+    /** Provider (e.g. AMFI's daily NAV file) does not publish a SEBI riskometer classification for this scheme. */
+    NOT_RATED
 }
