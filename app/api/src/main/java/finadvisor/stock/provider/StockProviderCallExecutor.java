@@ -10,13 +10,13 @@ import java.util.logging.Logger;
 
 /** Executes a provider call with exponential-backoff retry (Part 16/6) - only retryable {@link StockProviderException}s are retried. */
 @Component
-public class ProviderCallExecutor {
+public class StockProviderCallExecutor {
 
-    private static final Logger log = Logger.getLogger(ProviderCallExecutor.class.getName());
+    private static final Logger log = Logger.getLogger(StockProviderCallExecutor.class.getName());
 
     private final StockProviderProperties properties;
 
-    public ProviderCallExecutor(StockProviderProperties properties) {
+    public StockProviderCallExecutor(StockProviderProperties properties) {
         this.properties = properties;
     }
 

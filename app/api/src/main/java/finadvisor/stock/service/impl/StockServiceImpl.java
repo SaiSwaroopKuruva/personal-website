@@ -14,7 +14,7 @@ import finadvisor.stock.provider.MarketIndex;
 import finadvisor.stock.provider.MarketQuote;
 import finadvisor.stock.provider.MarketStatusInfo;
 import finadvisor.stock.provider.NewsItem;
-import finadvisor.stock.provider.ProviderCallExecutor;
+import finadvisor.stock.provider.StockProviderCallExecutor;
 import finadvisor.stock.provider.ProviderResponse;
 import finadvisor.stock.provider.ProviderStockDetails;
 import finadvisor.stock.provider.StockMarketDataProvider;
@@ -32,9 +32,9 @@ import java.util.function.Supplier;
 public class StockServiceImpl implements StockService {
 
     private final Optional<StockMarketDataProvider> provider;
-    private final ProviderCallExecutor providerCallExecutor;
+    private final StockProviderCallExecutor providerCallExecutor;
 
-    public StockServiceImpl(Optional<StockMarketDataProvider> provider, ProviderCallExecutor providerCallExecutor) {
+    public StockServiceImpl(Optional<StockMarketDataProvider> provider, StockProviderCallExecutor providerCallExecutor) {
         this.provider = provider;
         this.providerCallExecutor = providerCallExecutor;
     }
