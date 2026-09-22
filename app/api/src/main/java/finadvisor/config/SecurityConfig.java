@@ -56,6 +56,26 @@ public class SecurityConfig {
             "/api/mutual-funds/*/managers"
     };
 
+    // Stock/market data (Phase 3.5) is informational/read-only and public; admin sync endpoints are NOT
+    // listed here - they fall through to .anyRequest().authenticated() + @PreAuthorize("hasRole('ADMIN')").
+    private static final String[] STOCK_PUBLIC_GET_ENDPOINTS = {
+            "/api/stocks",
+            "/api/stocks/*",
+            "/api/stocks/*/prices",
+            "/api/stocks/*/ohlc",
+            "/api/stocks/*/metrics",
+            "/api/stocks/*/financials",
+            "/api/stocks/*/dividends",
+            "/api/stocks/*/corporate-actions",
+            "/api/stocks/*/news",
+            "/api/market/indices",
+            "/api/market/gainers",
+            "/api/market/losers",
+            "/api/market/most-active",
+            "/api/market/status",
+            "/api/data-providers/status"
+    };
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
@@ -92,6 +112,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/mutual-funds/*/favorite").authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, MUTUAL_FUND_PUBLIC_GET_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, STOCK_PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/calculators/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
