@@ -6,6 +6,7 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { InvestmentGoals } from "@/components/dashboard/investment-goals";
 import { MarketSnapshot } from "@/components/dashboard/market-snapshot";
+import { WatchlistPreview } from "@/components/dashboard/watchlist-preview";
 
 export default function DashboardPage() {
   return (
@@ -24,6 +25,10 @@ export default function DashboardPage() {
         <RecentActivity />
         <InvestmentGoals />
         <MarketSnapshot />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <WatchlistPreview />
       </div>
     </div>
   );

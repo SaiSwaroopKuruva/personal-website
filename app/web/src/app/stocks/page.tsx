@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Search as SearchIcon } from "lucide-react";
+import Link from "next/link";
+import { GitCompare, Search as SearchIcon, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -11,6 +13,7 @@ import { Disclaimer } from "@/components/mutual-funds/disclaimer";
 import { ProviderStatusBanner } from "@/components/stocks/provider-status-banner";
 import { useStockSearch } from "@/hooks/use-stocks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { ROUTES } from "@/lib/constants";
 
 const STOCK_DISCLAIMER =
   "Stock market data may be delayed, subject to provider availability, data-source limitations and synchronization intervals. This platform provides informational data only and does not constitute investment advice. This platform does not support placing trades or orders.";
@@ -27,7 +30,19 @@ export default function StocksExplorerPage() {
           <h1 className="text-2xl font-bold">Stocks</h1>
           <p className="text-sm text-muted-foreground">Search NSE-listed stocks for provider-backed quotes and history.</p>
         </div>
-        <ProviderStatusBanner />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={ROUTES.stockWatchlist}>
+              <Star className="h-4 w-4" /> Watchlist
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={ROUTES.stockCompare}>
+              <GitCompare className="h-4 w-4" /> Compare
+            </Link>
+          </Button>
+          <ProviderStatusBanner />
+        </div>
       </div>
 
       <div className="relative max-w-lg">
