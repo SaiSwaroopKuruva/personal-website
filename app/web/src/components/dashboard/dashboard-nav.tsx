@@ -27,6 +27,9 @@ export function DashboardNav() {
           <Link href={ROUTES.stocks} className="transition-colors hover:text-foreground">
             Stocks
           </Link>
+          <Link href={ROUTES.stockWatchlist} className="transition-colors hover:text-foreground">
+            Watchlist
+          </Link>
           <Link href={ROUTES.market} className="transition-colors hover:text-foreground">
             Market
           </Link>

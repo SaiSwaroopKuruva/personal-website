@@ -1,5 +1,13 @@
 import { apiClient } from "@/lib/api/axios-client";
-import type { CandleHistory, StockDetails, StockNewsItem, StockQuote } from "@/types/stock";
+import type {
+  CandleHistory,
+  StockComparison,
+  StockDetails,
+  StockNewsItem,
+  StockQuote,
+  WatchlistItem,
+  WatchlistStatus,
+} from "@/types/stock";
 
 export const stockApi = {
   search: (query: string) => apiClient.get<StockDetails[]>("/api/stocks", { params: { query } }).then((res) => res.data),
@@ -12,4 +20,16 @@ export const stockApi = {
     apiClient.get<CandleHistory>(`/api/stocks/${symbol}/ohlc`, { params }).then((res) => res.data),
 
   getNews: (symbol: string) => apiClient.get<StockNewsItem[]>(`/api/stocks/${symbol}/news`).then((res) => res.data),
+
+  getWatchlist: () => apiClient.get<WatchlistItem[]>("/api/stocks/watchlist").then((res) => res.data),
+
+  addToWatchlist: (symbol: string) =>
+    apiClient.post<WatchlistStatus>(`/api/stocks/${symbol}/watchlist`).then((res) => res.data),
+
+  removeFromWatchlist: (symbol: string) =>
+    apiClient.delete<WatchlistStatus>(`/api/stocks/${symbol}/watchlist`).then((res) => res.data),
+
+  compare: (symbols: string[]) =>
+    apiClient.get<StockComparison>("/api/stocks/compare", { params: { symbols: symbols.join(",") } }).then((res) => res.data),
 };
+
