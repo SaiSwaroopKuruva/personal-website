@@ -161,7 +161,7 @@ class HoldingCalculationServiceImplTest {
         PortfolioTransaction buy = tx(TransactionType.BUY, LocalDate.of(2024, 1, 1), "10", "100", "1000", "0", "0");
         PortfolioTransaction oversell = tx(TransactionType.SELL, LocalDate.of(2024, 2, 1), "15", "100", "1500", "0", "0");
 
-        assertThatThrownBy(() -> service.validateNewTransaction(null, oversell, List.of(buy)))
+        assertThatThrownBy(() -> service.validateNewTransaction(oversell, List.of(buy)))
                 .isInstanceOf(InsufficientUnitsException.class);
     }
 }

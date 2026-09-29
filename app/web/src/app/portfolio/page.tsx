@@ -125,9 +125,7 @@ export default function PortfolioOverviewPage() {
         {summary.lastValuationAt ? `Last valuation: ${formatDate(summary.lastValuationAt)}` : "No valuation yet"}
       </p>
 
-      {selectedPortfolioId ? (
-        <TransactionFormDialog portfolioId={selectedPortfolioId} open={txDialogOpen} onOpenChange={setTxDialogOpen} />
-      ) : null}
+      <TransactionFormDialog portfolioId={selectedPortfolioId} open={txDialogOpen} onOpenChange={setTxDialogOpen} />
     </div>
   );
 }

@@ -3,7 +3,6 @@ package finadvisor.portfolio.service;
 import finadvisor.portfolio.entity.PortfolioTransaction;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface HoldingCalculationService {
 
@@ -16,6 +15,6 @@ public interface HoldingCalculationService {
     /** Builds the signed, dated investor cash-flow series used by {@link XirrService} (Part 12). */
     List<CashFlowEntry> buildInvestorCashFlows(List<PortfolioTransaction> transactions);
 
-    /** Validates a transaction against portfolio {@code portfolioId}'s existing ledger (e.g. no oversell). */
-    void validateNewTransaction(UUID portfolioId, PortfolioTransaction candidate, List<PortfolioTransaction> existingLedger);
+    /** Validates a candidate transaction against the portfolio's existing ledger (e.g. no oversell). */
+    void validateNewTransaction(PortfolioTransaction candidate, List<PortfolioTransaction> existingLedger);
 }

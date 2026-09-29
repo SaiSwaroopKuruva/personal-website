@@ -90,7 +90,7 @@ public class PortfolioTransactionServiceImpl implements PortfolioTransactionServ
         Portfolio portfolio = portfolioService.requireOwnedPortfolio(userEmail, portfolioId);
         PortfolioTransaction candidate = buildTransaction(portfolio, request);
         List<PortfolioTransaction> existingLedger = transactionRepository.findByPortfolioIdOrderByTransactionDateAscCreatedAtAsc(portfolioId);
-        holdingCalculationService.validateNewTransaction(portfolioId, candidate, existingLedger);
+        holdingCalculationService.validateNewTransaction(candidate, existingLedger);
         PortfolioTransaction saved = transactionRepository.save(candidate);
         snapshotService.invalidateFrom(portfolioId, saved.getTransactionDate());
         return toResponse(saved);
@@ -114,7 +114,7 @@ public class PortfolioTransactionServiceImpl implements PortfolioTransactionServ
         candidate.setId(existing.getId());
         List<PortfolioTransaction> ledgerWithoutThisOne = transactionRepository.findByPortfolioIdOrderByTransactionDateAscCreatedAtAsc(portfolioId)
                 .stream().filter(tx -> !tx.getId().equals(transactionId)).toList();
-        holdingCalculationService.validateNewTransaction(portfolioId, candidate, ledgerWithoutThisOne);
+        holdingCalculationService.validateNewTransaction(candidate, ledgerWithoutThisOne);
 
         existing.setAssetType(candidate.getAssetType());
         existing.setStockSymbol(candidate.getStockSymbol());

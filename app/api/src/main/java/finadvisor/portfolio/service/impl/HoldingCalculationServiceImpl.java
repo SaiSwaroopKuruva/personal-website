@@ -20,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * FIFO cost-basis engine (Part 5). This is the single place that walks the transaction ledger, so
@@ -98,17 +97,26 @@ public class HoldingCalculationServiceImpl implements HoldingCalculationService 
     public List<CashFlowEntry> buildInvestorCashFlows(List<PortfolioTransaction> transactions) {
         List<CashFlowEntry> flows = new ArrayList<>();
         for (PortfolioTransaction tx : sorted(transactions)) {
-            switch (tx.getTransactionType()) {
-                case BUY, PURCHASE, FEE, TAX -> flows.add(new CashFlowEntry(tx.getTransactionDate(), tx.getNetAmount().negate()));
-                case SELL, REDEMPTION, DIVIDEND -> flows.add(new CashFlowEntry(tx.getTransactionDate(), tx.getNetAmount()));
-                case ADJUSTMENT -> { /* non-cash by definition (Part 24) - never enters the XIRR cash-flow series */ }
+            // Individual (non-comma-grouped) case labels so the compiler enforces exhaustiveness over TransactionType.
+            BigDecimal signedAmount = switch (tx.getTransactionType()) {
+                case BUY -> tx.getNetAmount().negate();
+                case PURCHASE -> tx.getNetAmount().negate();
+                case FEE -> tx.getNetAmount().negate();
+                case TAX -> tx.getNetAmount().negate();
+                case SELL -> tx.getNetAmount();
+                case REDEMPTION -> tx.getNetAmount();
+                case DIVIDEND -> tx.getNetAmount();
+                case ADJUSTMENT -> null; // non-cash by definition (Part 24) - never enters the XIRR cash-flow series
+            };
+            if (signedAmount != null) {
+                flows.add(new CashFlowEntry(tx.getTransactionDate(), signedAmount));
             }
         }
         return flows;
     }
 
     @Override
-    public void validateNewTransaction(UUID portfolioId, PortfolioTransaction candidate, List<PortfolioTransaction> existingLedger) {
+    public void validateNewTransaction(PortfolioTransaction candidate, List<PortfolioTransaction> existingLedger) {
         List<PortfolioTransaction> merged = new ArrayList<>(existingLedger);
         merged.add(candidate);
         // Re-running full FIFO surfaces InsufficientUnitsException exactly as it would occur chronologically,
