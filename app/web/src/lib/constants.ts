@@ -30,6 +30,12 @@ export const ROUTES = {
   calculatorSip: "/calculators/sip",
   calculatorLumpsum: "/calculators/lumpsum",
   calculatorSwp: "/calculators/swp",
+  portfolio: "/portfolio",
+  portfolioHoldings: "/portfolio/holdings",
+  portfolioTransactions: "/portfolio/transactions",
+  portfolioPerformance: "/portfolio/performance",
+  portfolioAllocation: "/portfolio/allocation",
+  netWorth: "/net-worth",
 } as const;
 
 export const AUTH_STORAGE_KEY = "fin-advisor-auth";
