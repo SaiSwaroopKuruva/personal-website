@@ -6,6 +6,13 @@ import finadvisor.mutualfund.exception.DuplicateFavoriteException;
 import finadvisor.mutualfund.exception.InvalidCalculatorInputException;
 import finadvisor.mutualfund.exception.InvalidComparisonRequestException;
 import finadvisor.mutualfund.exception.MutualFundNotFoundException;
+import finadvisor.networth.exception.UserAssetNotFoundException;
+import finadvisor.networth.exception.UserLiabilityNotFoundException;
+import finadvisor.portfolio.exception.DuplicatePortfolioNameException;
+import finadvisor.portfolio.exception.InsufficientUnitsException;
+import finadvisor.portfolio.exception.InvalidPortfolioTransactionException;
+import finadvisor.portfolio.exception.PortfolioNotFoundException;
+import finadvisor.portfolio.exception.PortfolioTransactionNotFoundException;
 import finadvisor.stock.exception.DuplicateWatchlistException;
 import finadvisor.stock.exception.InvalidStockComparisonRequestException;
 import finadvisor.stock.exception.StockNotFoundException;
@@ -150,6 +157,41 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidStockComparisonRequestException.class)
     public ResponseEntity<ErrorResponse> handleInvalidStockComparisonRequest(InvalidStockComparisonRequestException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PortfolioNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePortfolioNotFound(PortfolioNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PortfolioTransactionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePortfolioTransactionNotFound(PortfolioTransactionNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidPortfolioTransactionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPortfolioTransaction(InvalidPortfolioTransactionException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InsufficientUnitsException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientUnits(InsufficientUnitsException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicatePortfolioNameException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicatePortfolioName(DuplicatePortfolioNameException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(UserAssetNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleUserAssetNotFound(UserAssetNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(UserLiabilityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleUserLiabilityNotFound(UserLiabilityNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
     @ExceptionHandler(StockProviderException.class)
