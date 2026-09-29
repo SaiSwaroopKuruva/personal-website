@@ -369,6 +369,9 @@ public class UpstoxStockMarketDataProvider implements StockMarketDataProvider {
     }
 
     private String encodeInstrumentKey(String instrumentKey) {
-        return instrumentKey.replace("|", "%7C");
+        // Index instrument keys contain spaces (e.g. "NSE_INDEX|Nifty 50") which URI.create() rejects outright -
+        // percent-encode the whole key rather than only handling '|', otherwise index quotes fail with a
+        // generic INVALID_PROVIDER_RESPONSE/503 instead of the underlying IllegalArgumentException's real cause.
+        return java.net.URLEncoder.encode(instrumentKey, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
     }
 }
