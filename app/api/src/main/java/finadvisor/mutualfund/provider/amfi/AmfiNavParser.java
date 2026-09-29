@@ -76,12 +76,18 @@ public final class AmfiNavParser {
         if (fields.length < 6) {
             return null;
         }
+        // NAV and date are always the last two columns; AMFI's newer file format inserts extra "Plan"/"Option"
+        // columns between scheme name and NAV (vs. the older 6-column layout), so fold those into the scheme
+        // name rather than hardcoding fixed indices - keeps downstream plan/option inference working either way.
         String schemeCode = fields[0].strip();
         String isinGrowth = blankToNull(fields[1].strip());
         String isinReinvestment = blankToNull(fields[2].strip());
-        String schemeName = fields[3].strip();
-        String navRaw = fields[4].strip();
-        String dateRaw = fields[5].strip();
+        String navRaw = fields[fields.length - 2].strip();
+        String dateRaw = fields[fields.length - 1].strip();
+        String schemeName = java.util.Arrays.stream(fields, 3, fields.length - 2)
+                .map(String::strip)
+                .filter(part -> !part.isEmpty())
+                .collect(java.util.stream.Collectors.joining(" - "));
 
         if (schemeCode.isEmpty() || schemeName.isEmpty()) {
             return null;

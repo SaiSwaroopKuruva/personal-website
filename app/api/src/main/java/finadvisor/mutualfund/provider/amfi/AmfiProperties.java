@@ -20,7 +20,7 @@ public class AmfiProperties {
      * active scheme's latest NAV, grouped by AMC and category. This is AMFI's only documented free/public
      * bulk NAV feed; there is no documented per-scheme historical NAV REST API (see docs/financial-data-providers.md).
      */
-    private String navAllUrl = "https://www.amfiindia.com/spragmt/NAVAll.txt";
+    private String navAllUrl = "https://portal.amfiindia.com/spages/NAVAll.txt";
 
     /** How long the in-memory parsed snapshot is reused before re-fetching from AMFI, to avoid hammering the source. */
     private int cacheTtlMinutes = 60;
