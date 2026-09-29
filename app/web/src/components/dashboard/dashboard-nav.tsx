@@ -21,6 +21,12 @@ export function DashboardNav() {
         </Link>
 
         <nav className="hidden items-center gap-4 text-sm font-medium text-muted-foreground md:flex">
+          <Link href={ROUTES.portfolio} className="transition-colors hover:text-foreground">
+            Portfolio
+          </Link>
+          <Link href={ROUTES.netWorth} className="transition-colors hover:text-foreground">
+            Net Worth
+          </Link>
           <Link href={ROUTES.mutualFunds} className="transition-colors hover:text-foreground">
             Mutual Funds
           </Link>

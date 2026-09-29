@@ -1,15 +1,17 @@
+"use client";
+
+import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-// Placeholder data — real portfolio integration is planned for a later phase.
-const PORTFOLIO = {
-  totalValue: "₹12,45,320",
-  invested: "₹10,20,000",
-  returns: "+₹2,25,320",
-  returnsPercent: "+22.1%",
-};
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSelectedPortfolio, usePortfolioSummary } from "@/hooks/use-portfolio";
+import { ROUTES } from "@/lib/constants";
+import { formatInr, formatPercent } from "@/lib/utils";
 
 export function PortfolioSummaryCard() {
+  const { portfolios, selectedPortfolioId, isLoading } = useSelectedPortfolio();
+  const summaryQuery = usePortfolioSummary(selectedPortfolioId);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -17,11 +19,30 @@ export function PortfolioSummaryCard() {
         <Wallet className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-bold">{PORTFOLIO.totalValue}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Invested {PORTFOLIO.invested} · <span className="text-emerald-600 dark:text-emerald-400">{PORTFOLIO.returns} ({PORTFOLIO.returnsPercent})</span>
-        </p>
+        {isLoading || summaryQuery.isLoading ? (
+          <Skeleton className="h-10 w-full" />
+        ) : portfolios.length === 0 ? (
+          <div>
+            <p className="text-sm text-muted-foreground">No portfolio yet</p>
+            <Link href={ROUTES.portfolio} className="text-xs text-primary hover:underline">
+              Create your first portfolio
+            </Link>
+          </div>
+        ) : summaryQuery.data ? (
+          <Link href={ROUTES.portfolio}>
+            <p className="text-2xl font-bold">
+              {summaryQuery.data.currentMarketValue !== null ? formatInr(summaryQuery.data.currentMarketValue) : "Unavailable"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Invested {formatInr(summaryQuery.data.investedAmount)} ·{" "}
+              <span className={Number(summaryQuery.data.absoluteGainLoss) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                {formatInr(summaryQuery.data.absoluteGainLoss)} ({summaryQuery.data.percentGainLoss !== null ? formatPercent(summaryQuery.data.percentGainLoss) : "—"})
+              </span>
+            </p>
+          </Link>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
+
