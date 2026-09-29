@@ -61,4 +61,24 @@ class AmfiNavParserTest {
         assertThat(AmfiNavParser.parse(null).records()).isEmpty();
         assertThat(AmfiNavParser.parse("   ").records()).isEmpty();
     }
+
+    @Test
+    void parse_shouldHandleNewerFormatWithSeparatePlanAndOptionColumns() {
+        String newFormatSample = String.join("\n",
+                "Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date",
+                "",
+                "Open Ended Schemes(Debt Scheme - Overnight Fund)",
+                "",
+                "Axis Mutual Fund",
+                "135762;INF846K01WO1;-;Axis Overnight Fund;Direct Plan;Growth Option;29.3632;28-Sep-2026"
+        );
+
+        AmfiNavParser.ParseResult result = AmfiNavParser.parse(newFormatSample);
+
+        assertThat(result.records()).hasSize(1);
+        AmfiSchemeRecord record = result.records().get(0);
+        assertThat(record.schemeName()).isEqualTo("Axis Overnight Fund - Direct Plan - Growth Option");
+        assertThat(record.nav()).isEqualByComparingTo(new BigDecimal("29.3632"));
+        assertThat(record.navDate()).isEqualTo(LocalDate.of(2026, 9, 28));
+    }
 }

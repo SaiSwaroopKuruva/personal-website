@@ -120,7 +120,7 @@ controller, carrying `dataType` (`REAL_TIME`/`INTRADAY`/`DELAYED`/`END_OF_DAY`) 
 
 AMFI publishes a daily plain-text NAV file (semicolon-separated, grouped by broad scheme category then AMC)
 at a well-known public URL, configurable via `AMFI_BASE_URL` (default
-`https://www.amfiindia.com/spragmt/NAVAll.txt`). No credentials are required - this is a free, public
+`https://portal.amfiindia.com/spages/NAVAll.txt`). No credentials are required - this is a free, public
 data source, not authenticated in any way.
 
 `AmfiNavParser` parses this format defensively: malformed rows (invalid NAV, invalid date, missing AMC
