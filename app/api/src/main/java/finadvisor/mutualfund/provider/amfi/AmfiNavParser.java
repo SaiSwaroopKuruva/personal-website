@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,7 +20,9 @@ import java.util.logging.Logger;
 public final class AmfiNavParser {
 
     private static final Logger log = Logger.getLogger(AmfiNavParser.class.getName());
-    private static final DateTimeFormatter NAV_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+    // AMFI's NAV file always uses English month abbreviations (e.g. "Sep") - pin the locale so parsing
+    // doesn't silently fail (and drop every row) when the JVM's default locale isn't English.
+    private static final DateTimeFormatter NAV_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
 
     private AmfiNavParser() {
     }
