@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants";
-import { formatInr, formatPercent } from "@/lib/utils";
+import { ChangeIndicator } from "@/components/ui/change-indicator";
+import { formatInr } from "@/lib/utils";
 import type { StockQuote } from "@/types/stock";
 
 export function MoversTable({ quotes, valueLabel = "LTP" }: { quotes: StockQuote[]; valueLabel?: string }) {
@@ -24,9 +25,9 @@ export function MoversTable({ quotes, valueLabel = "LTP" }: { quotes: StockQuote
                 {q.symbol}
               </Link>
             </td>
-            <td className="py-2 text-right">{formatInr(q.lastTradedPrice, { decimals: 2 })}</td>
-            <td className={`py-2 text-right font-medium ${Number(q.changePercent ?? 0) >= 0 ? "text-emerald-600" : "text-destructive"}`}>
-              {formatPercent(q.changePercent)}
+            <td className="py-2 text-right tabular-nums">{formatInr(q.lastTradedPrice, { decimals: 2 })}</td>
+            <td className="py-2 text-right">
+              <ChangeIndicator changePercent={q.changePercent} className="justify-end" />
             </td>
           </tr>
         ))}

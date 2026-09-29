@@ -620,6 +620,9 @@ endpoints used, provider limitations, and setup instructions live in
 | GET | `/api/stocks/{symbol}/ohlc` | Historical/intraday OHLC (`interval=EOD\|INTRADAY`) |
 | GET | `/api/stocks/{symbol}/news` | Recent news (Upstox News API) |
 | GET | `/api/stocks/{symbol}/metrics`, `/financials`, `/dividends`, `/corporate-actions` | `501 Not Implemented` - documented limitation, see docs |
+| GET | `/api/stocks/compare?symbols=A,B` | Compare 2-4 stocks (factual fields only, see [Section 26](#26-phase-4-stock-watchlist-comparison--ui-design-system)) |
+| GET | `/api/stocks/watchlist` | List current user's watchlist (auth required) |
+| POST/DELETE | `/api/stocks/{symbol}/watchlist` | Add/remove a stock from the current user's watchlist (auth required) |
 | GET | `/api/market/indices` \| `/gainers` \| `/losers` \| `/most-active` \| `/status` | Market-wide data |
 | GET | `/api/data-providers/status` | Public, credential-free provider health |
 | POST | `/api/admin/stocks/sync*` | Trigger stock sync (`ROLE_ADMIN`) |
@@ -643,11 +646,58 @@ explicit rather than implying everything is live (Part 20/38).
 
 ## 25. Phase 5 TODOs
 
-- Implement Upstox Fundamentals API integration for `/metrics`, `/financials`, `/dividends`, `/corporate-actions`.
+- Implement Upstox Fundamentals API integration for `/metrics`, `/financials`, `/dividends`, `/corporate-actions`
+  (also unblocks real sector performance - `sector` is null today because Instrument Search doesn't return it).
 - Implement Upstox V3 WebSocket market-data streaming (requires Protobuf message decoding).
 - Expand the tracked stock universe (or ingest the full NSE/BSE instrument JSON file) for broader
   search/screener coverage.
 - Redis-backed caching (swap `CacheConfig`'s `CacheManager` bean) - now doubly useful with two live providers.
 - Testcontainers-based integration tests for the Upstox/AMFI provider adapters against recorded fixtures.
+- Full accessibility audit (ARIA/keyboard/contrast) and a Playwright E2E suite (Phase 4 covered unit/component
+  tests only - see [Section 26](#26-phase-4-stock-watchlist-comparison--ui-design-system)).
+- Company news UI cards, dividends/corporate-actions timeline UI - currently blocked on the same Fundamentals
+  API gap as `/metrics` and `/financials`.
+- Replace remaining dashboard placeholders (`QuickActions`, `RecentActivity`, portfolio/net-worth cards) with
+  real data once portfolio/transaction features exist.
+
+## 26. Phase 4: Stock Watchlist, Comparison & UI Design System
+
+Phase 4 adds authenticated stock watchlists, a 2-4 stock comparison view, a hand-rolled price/candlestick
+chart, and the first pass of a shared semantic color system - all built on top of the Phase 3.5 stock
+platform without changing existing contracts. Financial statements/metrics/dividends/corporate-actions and
+sector performance remain `501 Not Implemented` this phase since they depend on the same unverified Upstox
+Fundamentals API noted in Phase 3.5 - the team decided not to fabricate data to unblock them.
+
+### 26.1 Backend
+
+- `user_stock_watchlist` table (`V6__stock_watchlist.sql`, mirrors `user_mutual_fund_favorites`) +
+  `StockWatchlistService`: adding a symbol that isn't yet locally synced resolves it live from the provider
+  and persists a `Stock` row (same upsert pattern as `StockDataSyncService`), so watchlisting works even
+  before the nightly sync job runs.
+- `StockComparisonService` compares 2-4 symbols using only real provider-backed fields (symbol, company,
+  exchange, sector, series, lot size, live quote) - no PE/PB/EPS ranking, since those aren't available yet;
+  the response carries an explicit `dataLimitationNote` saying so.
+- New endpoints: `GET/POST/DELETE /api/stocks/{symbol}/watchlist`, `GET /api/stocks/watchlist`,
+  `GET /api/stocks/compare`. Watchlist routes require authentication (mirrors mutual fund favorites).
+
+### 26.2 Frontend
+
+- `/stocks/watchlist` and `/stocks/compare` pages, `WatchlistButton` (stock details page),
+  `WatchlistPreview` dashboard widget, and a `PriceChart` component (line + candlestick, time-range
+  selector, volume bars, OHLC tooltip) added to the stock details page - hand-rolled SVG like the existing
+  `NavChart`, no new charting dependency.
+- `MarketSnapshot` on the dashboard now calls the real `/api/market/indices` endpoint instead of showing
+  hard-coded placeholder numbers.
+- New semantic color tokens `--positive`/`--negative`/`--market-neutral` (light + dark) and a shared
+  `ChangeIndicator` component replace hard-coded `emerald-600`/`destructive` classes in `StockQuotePanel`
+  and `MoversTable`.
+
+### 26.3 Explicitly out of scope this phase
+
+- Financial metrics/statements/dividends/corporate-actions/news UI and sector performance (blocked on
+  Fundamentals API - see Phase 5 TODOs).
+- Full accessibility audit, Playwright E2E suite, and PR screenshots (not produced this session).
+- Grouped/mega-menu navigation and bottom mobile navigation - the existing flat nav pattern was extended
+  instead to avoid an inconsistent redesign.
 
 

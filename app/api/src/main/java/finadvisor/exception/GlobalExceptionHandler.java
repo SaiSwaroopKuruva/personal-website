@@ -6,6 +6,8 @@ import finadvisor.mutualfund.exception.DuplicateFavoriteException;
 import finadvisor.mutualfund.exception.InvalidCalculatorInputException;
 import finadvisor.mutualfund.exception.InvalidComparisonRequestException;
 import finadvisor.mutualfund.exception.MutualFundNotFoundException;
+import finadvisor.stock.exception.DuplicateWatchlistException;
+import finadvisor.stock.exception.InvalidStockComparisonRequestException;
 import finadvisor.stock.exception.StockNotFoundException;
 import finadvisor.stock.provider.StockProviderException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -138,6 +140,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StockNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleStockNotFound(StockNotFoundException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicateWatchlistException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateWatchlist(DuplicateWatchlistException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidStockComparisonRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidStockComparisonRequest(InvalidStockComparisonRequestException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(StockProviderException.class)

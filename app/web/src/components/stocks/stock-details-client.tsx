@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, GitCompare } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Disclaimer } from "@/components/mutual-funds/disclaimer";
 import { StockQuotePanel } from "@/components/stocks/stock-quote-panel";
+import { WatchlistButton } from "@/components/stocks/watchlist-button";
+import { PriceChart } from "@/components/stocks/price-chart";
 import { useStockDetails, useStockNews, useStockPrice } from "@/hooks/use-stocks";
+import { useStockCompareStore } from "@/store/stock-compare-store";
 import { ROUTES } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 
@@ -22,6 +26,7 @@ export function StockDetailsClient() {
   const { data: details, isLoading, isError, refetch } = useStockDetails(symbol);
   const { data: quote, isLoading: quoteLoading } = useStockPrice(symbol);
   const { data: news } = useStockNews(symbol);
+  const { symbols: compareSymbols, add: addToCompare, isFull: isCompareFull } = useStockCompareStore();
 
   if (isLoading) {
     return (
@@ -36,18 +41,42 @@ export function StockDetailsClient() {
     return <ErrorState title="Could not load this stock" description="Please try again." onRetry={() => refetch()} />;
   }
 
+  const isInCompare = compareSymbols.includes(details.symbol);
+
   return (
     <div className="space-y-6 pb-20">
       <Link href={ROUTES.stocks} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to stocks
       </Link>
 
-      <div>
-        <h1 className="text-2xl font-bold">{details.symbol}</h1>
-        <p className="text-sm text-muted-foreground">
-          {details.companyName} · {details.exchange}
-          {details.sector ? ` · ${details.sector}` : ""}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">{details.symbol}</h1>
+          <p className="text-sm text-muted-foreground">
+            {details.companyName} · {details.exchange}
+            {details.sector ? ` · ${details.sector}` : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <WatchlistButton symbol={details.symbol} />
+          <Button
+            variant={isInCompare ? "secondary" : "outline"}
+            size="sm"
+            disabled={isCompareFull() && !isInCompare}
+            onClick={() => addToCompare(details.symbol)}
+            asChild={isInCompare}
+          >
+            {isInCompare ? (
+              <Link href={ROUTES.stockCompare}>
+                <GitCompare className="h-4 w-4" /> In comparison
+              </Link>
+            ) : (
+              <>
+                <GitCompare className="h-4 w-4" /> Compare
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {quoteLoading ? (
@@ -57,6 +86,15 @@ export function StockDetailsClient() {
       ) : (
         <p className="text-sm text-muted-foreground">Quote unavailable right now.</p>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Price Chart</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PriceChart symbol={details.symbol} />
+        </CardContent>
+      </Card>
 
       {news && news.length > 0 && (
         <Card>

@@ -2,22 +2,32 @@ package finadvisor.stock.controller;
 
 import finadvisor.stock.dto.CandleHistoryResponse;
 import finadvisor.stock.dto.NewsItemResponse;
+import finadvisor.stock.dto.StockComparisonResponse;
 import finadvisor.stock.dto.StockDetailsResponse;
 import finadvisor.stock.dto.StockQuoteResponse;
+import finadvisor.stock.dto.WatchlistItemResponse;
+import finadvisor.stock.dto.WatchlistStatusResponse;
+import finadvisor.stock.service.StockComparisonService;
 import finadvisor.stock.service.StockService;
+import finadvisor.stock.service.StockWatchlistService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 
 /** Stock discovery, quotes and history - data integration only (Part 1: never trading/order placement). */
@@ -31,11 +41,43 @@ public class StockController {
     private static final String SYMBOL_PATTERN = "^[A-Za-z0-9._&-]{1,50}$";
 
     private final StockService stockService;
+    private final StockWatchlistService watchlistService;
+    private final StockComparisonService comparisonService;
 
     @GetMapping
     @Operation(summary = "Search stocks by symbol or company name")
     public ResponseEntity<List<StockDetailsResponse>> search(@RequestParam String query) {
         return ResponseEntity.ok(stockService.search(query));
+    }
+
+    @GetMapping("/compare")
+    @Operation(summary = "Compare 2-4 stocks side by side", description = "Presents factual metrics only; not a ranking or recommendation.")
+    public ResponseEntity<StockComparisonResponse> compare(
+            @RequestParam @Parameter(description = "Comma-separated symbols, e.g. INFY,TCS") String symbols) {
+        List<String> symbolList = Arrays.stream(symbols.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+        return ResponseEntity.ok(comparisonService.compare(symbolList));
+    }
+
+    @GetMapping("/watchlist")
+    @Operation(summary = "List the current user's stock watchlist")
+    public ResponseEntity<List<WatchlistItemResponse>> listWatchlist(Authentication authentication) {
+        return ResponseEntity.ok(watchlistService.listWatchlist(authentication.getName()));
+    }
+
+    @PostMapping("/{symbol}/watchlist")
+    @Operation(summary = "Add a stock to the current user's watchlist")
+    public ResponseEntity<WatchlistStatusResponse> addToWatchlist(
+            Authentication authentication,
+            @PathVariable @Pattern(regexp = SYMBOL_PATTERN) String symbol) {
+        return ResponseEntity.ok(watchlistService.addToWatchlist(authentication.getName(), symbol));
+    }
+
+    @DeleteMapping("/{symbol}/watchlist")
+    @Operation(summary = "Remove a stock from the current user's watchlist")
+    public ResponseEntity<WatchlistStatusResponse> removeFromWatchlist(
+            Authentication authentication,
+            @PathVariable @Pattern(regexp = SYMBOL_PATTERN) String symbol) {
+        return ResponseEntity.ok(watchlistService.removeFromWatchlist(authentication.getName(), symbol));
     }
 
     @GetMapping("/{symbol}")

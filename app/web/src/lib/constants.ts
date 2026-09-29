@@ -24,6 +24,8 @@ export const ROUTES = {
   mutualFundDetails: (schemeCode: string) => `/mutual-funds/details?schemeCode=${encodeURIComponent(schemeCode)}`,
   stocks: "/stocks",
   stockDetails: (symbol: string) => `/stocks/details?symbol=${encodeURIComponent(symbol)}`,
+  stockWatchlist: "/stocks/watchlist",
+  stockCompare: "/stocks/compare",
   market: "/market",
   calculatorSip: "/calculators/sip",
   calculatorLumpsum: "/calculators/lumpsum",

@@ -22,6 +22,9 @@
     --input: 214 32% 91%;
     --ring: 158 64% 32%;
     --radius: 0.75rem;
+    --positive: 158 72% 30%;
+    --negative: 0 72% 45%;
+    --market-neutral: 215 16% 47%;
   }
 
   .dark {
@@ -42,6 +45,9 @@
     --border: 222 30% 18%;
     --input: 222 30% 18%;
     --ring: 158 64% 45%;
+    --positive: 158 64% 50%;
+    --negative: 0 70% 60%;
+    --market-neutral: 215 20% 65%;
   }
 }
 

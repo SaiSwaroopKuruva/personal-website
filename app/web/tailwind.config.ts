@@ -40,6 +40,9 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        positive: "hsl(var(--positive))",
+        negative: "hsl(var(--negative))",
+        "market-neutral": "hsl(var(--market-neutral))",
       },
       borderRadius: {
         lg: "var(--radius)",

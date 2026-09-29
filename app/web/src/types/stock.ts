@@ -62,3 +62,32 @@ export interface StockNewsItem {
   articleLink: string | null;
   publishedAt: string | null;
 }
+
+export interface WatchlistStatus {
+  symbol: string;
+  inWatchlist: boolean;
+}
+
+export interface WatchlistItem {
+  symbol: string;
+  companyName: string;
+  exchange: string;
+  quote: StockQuote | null;
+  addedAt: string;
+}
+
+export interface StockComparisonItem {
+  symbol: string;
+  companyName: string;
+  exchange: string;
+  sector: string | null;
+  series: string | null;
+  lotSize: number | null;
+  quote: StockQuote | null;
+}
+
+export interface StockComparison {
+  stocks: StockComparisonItem[];
+  disclaimer: string;
+  dataLimitationNote: string;
+}
