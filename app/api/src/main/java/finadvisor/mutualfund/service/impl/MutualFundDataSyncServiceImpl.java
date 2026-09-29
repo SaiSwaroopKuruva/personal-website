@@ -32,7 +32,9 @@ import finadvisor.mutualfund.repository.MutualFundReturnRepository;
 import finadvisor.mutualfund.service.MutualFundDataSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -40,10 +42,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-@RequiredArgsConstructor
 public class MutualFundDataSyncServiceImpl implements MutualFundDataSyncService {
 
     private static final Logger log = Logger.getLogger(MutualFundDataSyncServiceImpl.class.getName());
+    // Commits fund upserts in small batches instead of one ~10k-record transaction, so a single bad
+    // record only rolls back its own batch rather than discarding the entire sync's progress.
+    private static final int FUND_UPSERT_BATCH_SIZE = 200;
 
     private final MutualFundDataProvider provider;
     private final ProviderCallExecutor providerCallExecutor;
@@ -54,9 +58,29 @@ public class MutualFundDataSyncServiceImpl implements MutualFundDataSyncService 
     private final MutualFundManagerRepository managerRepository;
     private final MutualFundReturnRepository returnRepository;
     private final MutualFundDataSyncRepository syncLogRepository;
+    private final TransactionTemplate transactionTemplate;
+
+    public MutualFundDataSyncServiceImpl(MutualFundDataProvider provider, ProviderCallExecutor providerCallExecutor,
+                                          MutualFundAmcRepository amcRepository, MutualFundRepository fundRepository,
+                                          MutualFundNavHistoryRepository navHistoryRepository,
+                                          MutualFundHoldingRepository holdingRepository,
+                                          MutualFundManagerRepository managerRepository,
+                                          MutualFundReturnRepository returnRepository,
+                                          MutualFundDataSyncRepository syncLogRepository,
+                                          PlatformTransactionManager transactionManager) {
+        this.provider = provider;
+        this.providerCallExecutor = providerCallExecutor;
+        this.amcRepository = amcRepository;
+        this.fundRepository = fundRepository;
+        this.navHistoryRepository = navHistoryRepository;
+        this.holdingRepository = holdingRepository;
+        this.managerRepository = managerRepository;
+        this.returnRepository = returnRepository;
+        this.syncLogRepository = syncLogRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+    }
 
     @Override
-    @Transactional
     public SyncResultResponse syncFunds() {
         Instant startedAt = Instant.now();
         int processed = 0;
@@ -69,14 +93,12 @@ public class MutualFundDataSyncServiceImpl implements MutualFundDataSyncService 
             if (!response.success()) {
                 return persistLog(SyncType.FULL_SYNC, startedAt, 0, 0, SyncStatus.FAILED, response.errorMessage());
             }
-            for (ProviderFundData data : response.data()) {
-                try {
-                    upsertFund(data);
-                    processed++;
-                } catch (Exception ex) {
-                    failed++;
-                    log.log(Level.WARNING, "Failed to upsert fund " + data.schemeCode(), ex);
-                }
+            List<ProviderFundData> records = response.data();
+            for (int start = 0; start < records.size(); start += FUND_UPSERT_BATCH_SIZE) {
+                List<ProviderFundData> batch = records.subList(start, Math.min(start + FUND_UPSERT_BATCH_SIZE, records.size()));
+                int[] batchCounts = upsertFundBatch(batch);
+                processed += batchCounts[0];
+                failed += batchCounts[1];
             }
         } catch (ProviderException ex) {
             errorMessage = ex.getMessage();
@@ -85,6 +107,24 @@ public class MutualFundDataSyncServiceImpl implements MutualFundDataSyncService 
 
         SyncStatus status = resolveStatus(processed, failed, errorMessage);
         return persistLog(SyncType.FULL_SYNC, startedAt, processed, failed, status, errorMessage);
+    }
+
+    /** Runs one batch in its own transaction (via TransactionTemplate, so it applies even on self-invocation). */
+    private int[] upsertFundBatch(List<ProviderFundData> batch) {
+        return transactionTemplate.execute(status -> {
+            int processed = 0;
+            int failed = 0;
+            for (ProviderFundData data : batch) {
+                try {
+                    upsertFund(data);
+                    processed++;
+                } catch (Exception ex) {
+                    failed++;
+                    log.log(Level.WARNING, "Failed to upsert fund " + data.schemeCode(), ex);
+                }
+            }
+            return new int[]{processed, failed};
+        });
     }
 
     @Override
