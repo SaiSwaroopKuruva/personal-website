@@ -43,6 +43,10 @@ public class AmfiMutualFundDataProvider implements MutualFundDataProvider {
 
     private static final Logger log = Logger.getLogger(AmfiMutualFundDataProvider.class.getName());
     private static final String PROVIDER_NAME = "AMFI";
+    // Must match mutual_funds.scheme_name / short_name column lengths (V4__mutual_fund_platform.sql) -
+    // some AMFI scheme names exceed 150 chars, which previously overflowed short_name and crashed the sync.
+    private static final int SCHEME_NAME_MAX_LENGTH = 300;
+    private static final int SHORT_NAME_MAX_LENGTH = 150;
     private static final String HEALTH_KEY = "mutualFunds";
 
     private final RestClient restClient;
@@ -196,8 +200,8 @@ public class AmfiMutualFundDataProvider implements MutualFundDataProvider {
                 record.isin(),
                 amcCode,
                 record.amcName(),
-                record.schemeName(),
-                record.schemeName(),
+                truncate(record.schemeName(), SCHEME_NAME_MAX_LENGTH),
+                truncate(record.schemeName(), SHORT_NAME_MAX_LENGTH),
                 category,
                 subCategory,
                 planType.name(),
@@ -216,6 +220,10 @@ public class AmfiMutualFundDataProvider implements MutualFundDataProvider {
                 null, // inceptionDate - not published by AMFI
                 null  // fundManager - not published by AMFI
         );
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value != null && value.length() > maxLength ? value.substring(0, maxLength) : value;
     }
 
     private String extractCategory(String categoryLine) {
